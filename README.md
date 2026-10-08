@@ -1,6 +1,6 @@
 # sopy
 
-# cpp
+### cpp
 ```cpp
 #include <errno.h>
 #include <getopt.h>
@@ -36,6 +36,7 @@ int main(int argc, char* argv[])
 }
 ```
 
+### Makefile
 ```Makefile
 override CFLAGS=-Wall -Wextra -Wshadow -Wno-unused-parameter -Wno-unused-const-variable -g -O0 -fsanitize=address,undefined
 
@@ -56,7 +57,7 @@ clean:
 	rm -f ${NAME}
 ```
 
-# Polecenie
+### Polecenie
 1. 0 p. Skompiluj program i sprawdź, w jakim jest stanie. Napraw wszystkie ostrzeżenia i błędy
 kompilatora.
 2. 0 p. Rozwiąż wszystkie znalezione problemy i spraw, aby program działał zgodnie z treścią zadania.
