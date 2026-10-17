@@ -12,6 +12,30 @@ DIR *fdopendir(int fd);
 struct dirent *readdir(DIR *dirp);
 ```
 
+W celu przejrzenia całego katalogu, funkcję `readdir` należy wywoływać tyle razy, aż nie zwróci `NULL`. **W przypadku wystąpienia błędu, zarówno opendir, jak i readdir** zwracają `NULL`. Wynika z tego ważny wniosek w przypadku funkcji `readdir`: przed jej wywołaniem należy wyzerować zmienną `errno`, a w razie zwrócenia `NULL` sprawdzić, czy ta zmienna nie została ustawiona na niezerową wartość (oznaczającą błąd). errno jest zmienną globalną używaną przez funkcje systemowe do wskazania kodu napotkanego błędu.
+
+Funkcje `stat`, `lstat` i `closedir` zwracają 0 w razie sukcesu, inna wartość oznacza błąd.
+
+```C
+DIR *katalog = opendir(".");
+struct dirent *plik;
+
+errno = 0; // Wyzerowanie przed pierwszym odczytem
+while ((plik = readdir(katalog)) != NULL) {
+    printf("%s\n", plik->d_name);
+    errno = 0; // Wyzerowanie przed każdym kolejnym odczytem w pętli
+}
+
+// Gdy pętla się zatrzyma z powodu NULL, sprawdzamy status błędu:
+if (errno != 0) {
+    // Wystąpił błąd (np. błąd odczytu z dysku)
+    perror("Błąd readdir"); 
+} else {
+    // Brak błędu - po prostu poprawnie dotarto do końca katalogu
+    printf("Koniec katalogu.\n");
+}
+```
+
 ### man 0p dirent.h
 ```C
 ino_t  d_ino       -> identyfikator pliku (numer inode, więcej w man 7 inode)
