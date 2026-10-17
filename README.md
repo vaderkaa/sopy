@@ -37,7 +37,7 @@ Jednak funkcja `fstat` oczekuje wskaźnika (adresu do pudełka), by móc do nieg
 
 ```C
 struct stat *buffer;
-fstat(fildes, buffer);								// Tu nie trzeba &, bo buffer to już wskaźnik
+fstat(fildes, buffer);	// Tu nie trzeba &, bo buffer to już wskaźnik
 ```
 
 Ten kod się skompiluje, ale program natychmiast ulegnie awarii (tzw. Segmentation Fault). Dlaczego?   
