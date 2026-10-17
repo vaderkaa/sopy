@@ -25,7 +25,7 @@ int  stat(const char *restrict path, struct stat *restrict buf);
 int lstat(const char *restrict path, struct stat *restrict buf);
 ```
 
-Jedyną różnicą w działaniu funkcji stat i lstat jest obsługa linków. stat zwróci informacje o pliku, do którego dany link prowadzi, natomiast lstat zwróci informacje o samym linku.
+Jedyną różnicą w działaniu funkcji `stat` i `lstat` jest obsługa linków. stat zwróci informacje o pliku, do którego dany link prowadzi, natomiast lstat zwróci informacje o samym linku.
 
 ```C
 struct stat buffer;
@@ -71,7 +71,7 @@ Rozbijmy ten potrójny wskaźnik (`struct dirent ***`) na części logiczne, kro
 
 # Zadanie z lab1
 
-# C
+### C
 ```C
 #include <errno.h>
 #include <getopt.h>
@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
 }
 ```
 
-# Makefile
+### Makefile
 ```Makefile
 override CFLAGS=-Wall -Wextra -Wshadow -Wno-unused-parameter -Wno-unused-const-variable -g -O0 -fsanitize=address,undefined
 
@@ -128,7 +128,7 @@ clean:
 	rm -f ${NAME}
 ```
 
-# Polecenie
+### Polecenie
 1. 0 p. Skompiluj program i sprawdź, w jakim jest stanie. Napraw wszystkie ostrzeżenia i błędy
 kompilatora.
 2. 0 p. Rozwiąż wszystkie znalezione problemy i spraw, aby program działał zgodnie z treścią zadania.
