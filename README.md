@@ -1,24 +1,24 @@
-### Sopy 1
+# Sopy 1
 
-# man 3p fdopendir
+### man 3p fdopendir
 ```C
 #include <dirent.h>
 DIR *opendir(const char *dirname);
 DIR *fdopendir(int fd);
 ```
 
-# readdir
+### readdir
 ```C
 struct dirent *readdir(DIR *dirp);
 ```
 
-# man 0p dirent.h
+### man 0p dirent.h
 ```C
 ino_t  d_ino       -> identyfikator pliku (numer inode, więcej w man 7 inode)
 char   d_name[]    -> nazwa pliku
 ```
 
-# man 3p fstat
+### man 3p fstat
 ```C
 #include <sys/stat.h>
 int  stat(const char *restrict path, struct stat *restrict buf);
@@ -51,7 +51,7 @@ fstat(fildes, buffer);                             // Podajemy czysty wskaźnik
 free(buffer);                                      // Musimy pamiętać o posprzątaniu!
 ```
 
-# xargs - man 1 xargs
+### xargs - man 1 xargs
 
 `string` to w pamięci po prostu znaki ułożone jeden po drugim, zakończone niewidocznym znakiem `\0`.   
 `char *` to wskaźnik na pierwszy znak takiego ciągu. Mając ten adres, program wie, gdzie zaczyna się słowo i czyta je aż do napotkania `\0`.   Właśnie to traktujemy w C jako "string".   
@@ -61,7 +61,7 @@ Tablica wskaźników to zbiór adresów początkowych poszczególnych słów.
 Argument zerowy `argv[0]` to zawsze nazwa programu.   
 Aby parametrem uczynić dwa lub więcej słów trzeba ująć je w apostrofy albo wpisać znak \ przed każdą spacją (lub innym tzw. białym znakiem).
 
-# scandir
+### scandir
 
 Rozbijmy ten potrójny wskaźnik (`struct dirent ***`) na części logiczne, krok po kroku:   
 `struct dirent` – struktura opisująca pojedynczy plik lub katalog.   
@@ -69,7 +69,7 @@ Rozbijmy ten potrójny wskaźnik (`struct dirent ***`) na części logiczne, kro
 `struct dirent **` (2 gwiazdki) – tablica wskaźników na pliki (czyli cała lista plików znajdujących się w katalogu).   
 `struct dirent ***` (3 gwiazdki) – adres, pod którym znajduje się ta tablica wskaźników.
 
-## Zadanie z lab1
+# Zadanie z lab1
 
 # C
 ```C
