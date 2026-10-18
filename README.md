@@ -140,8 +140,7 @@ Funkcja zwraca buf w przypadku sukcesu. W razie niepowodzenia, zwracany jest `NU
 int chdir(const char *path);
 ```
 
-`path` jest ścieżką do nowego katalogu roboczego (może być względna lub bezwzględna),
-tak jak wiele funkcji systemowych zwracających `int`, funkcja `chdir` zwraca 0 w przypadku sukcesu i inną wartość w razie niepowodzenia.
+`path` jest ścieżką do nowego katalogu roboczego (może być względna lub bezwzględna), tak jak wiele funkcji systemowych zwracających `int`, funkcja `chdir` zwraca 0 w przypadku sukcesu i inną wartość w razie niepowodzenia.
 
 ### man 3p fopen
 
@@ -181,10 +180,10 @@ Dla wartości `offset` **równej 0 kursor pliku ustawiony jest na bajt po ostatn
 size_t fread(void *restrict ptr, size_t size, size_t nitems, FILE *restrict stream);
 ```
 
-`ptr` - bufor w który będą zapisywane dane
-`size` - rozmiar nieprzerwanych elementów do wczytania
-`nitems` - liczba elementów do wczytania
-`stream` - wskaźnik pozyskany z fopen
+`ptr` - bufor w który będą zapisywane dane   
+`size` - rozmiar nieprzerwanych elementów do wczytania   
+`nitems` - liczba elementów do wczytania   
+`stream` - wskaźnik pozyskany z fopen   
 Zwrócona wartość oznacza liczbę elementów wczytanych z sukcesem. Będzie ona **mniejsza niż `nitems` w przypadku błędu lub zakończenia pliku**. Można pomyśleć, że podział wczytanych danych na elementy jest niepotrzebną komplikacją, ale daje to pewną korzyść w przypadku gdy wczytywany plik składa się z pewnych rekordów których nie chcemy przerywać w połowie (np. 4-bajtowe zmienne całkowitoliczbowe `int`). W przypadku niepełnego odczytu nie musimy obliczać ile obiektów wczytaliśmy poprawnie ani cofać kursora pliku aby wczytać niepełny rekord jeszcze raz. W momencie gdy pierwsze wywołanie zwróciło `n` wystarczy wywołać funkcję jeszcze raz z przesuniętym buforem `ptr+size*n` oraz liczbą elementów `nitems-n`.
 
 ### man 3p fclose
@@ -220,10 +219,11 @@ Parametr przekazany do funkcji nie może być ścieżką do katalogu (folderu). 
 
 Jak działa unlinkat:   
 Druga funkcja w dokumentacji to rozszerzona, bezpieczniejsza wersja unlink z końcówką at (jak at directory).   
-Bezpieczna nawigacja (Omijanie Race Conditions):
+Bezpieczna nawigacja (Omijanie Race Conditions):   
 `unlinkat` stworzono, by zapobiegać błędom synchronizacji (race conditions). Jeżeli podasz jej ścieżkę względną, usunięcie pliku odbędzie się w oparciu o wcześniej otwarty deskryptor pliku (deskryptor folderu), do którego przypisana jest zmienna fd, a nie względem bieżącego, globalnego katalogu roboczego programu. Gwarantuje to, że plik zostanie usunięty z prawidłowego miejsca, nawet jeśli jakiś inny program w tle zmieni układ folderów.
 
-Usuwanie katalogów (Flaga `AT_REMOVEDIR`): W przeciwieństwie do zwykłego `unlink`, `unlinkat` potrafi legalnie i bezpiecznie usunąć również katalog, zachowując się jak funkcja `rmdir()`. Wystarczy jako trzeci parametr (flag) przekazać jej specjalną flagę systemową `AT_REMOVEDIR`.   
+Usuwanie katalogów (Flaga `AT_REMOVEDIR`):   
+W przeciwieństwie do zwykłego `unlink`, `unlinkat` potrafi legalnie i bezpiecznie usunąć również katalog, zachowując się jak funkcja `rmdir()`. Wystarczy jako trzeci parametr (flag) przekazać jej specjalną flagę systemową `AT_REMOVEDIR`.   
 Zarówno `unlink`, jak i `unlinkat` zwracają wartość 0 w przypadku poprawnego usunięcia dowiązania lub -1 w razie błędu, odpowiednio ustawiając zmienną errno (np. na EACCES dla braku uprawnień). 
 
 # Zadanie z lab1
