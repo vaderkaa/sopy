@@ -10,7 +10,7 @@ Tablica wskaźników to zbiór adresów początkowych poszczególnych słów.
 Argument zerowy `argv[0]` to zawsze nazwa programu.   
 Aby parametrem uczynić dwa lub więcej słów trzeba ująć je w apostrofy albo wpisać znak \ przed każdą spacją (lub innym tzw. białym znakiem).
 
-# man 3p errno
+### man 3p errno
 
 ```C
 #include <errno.h>
