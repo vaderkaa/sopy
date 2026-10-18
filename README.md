@@ -16,7 +16,8 @@ Aby parametrem uczynić dwa lub więcej słów trzeba ująć je w apostrofy albo
 `fprintf`: Wypisuje tekst do wskazanego strumienia, podanego jako argument `stream` (np. do pliku otwartego wcześniej za pomocą `fopen`).   
 `dprintf`: Działa analogicznie do `fprintf`, ale zamiast wskaźnika na strumień, przyjmuje tzw. deskryptor pliku (`fildes`), czyli niskopoziomowy identyfikator pliku w postaci liczby całkowitej.   
 `sprintf`: Zapisuje sformatowany tekst do bufora w pamięci (tablicy znaków `s`) i automatycznie dokleja na końcu znak terminacji `\0`. Użycie tej funkcji wymaga ostrożności, ponieważ to na programiście spoczywa obowiązek zagwarantowania, że w buforze jest wystarczająco dużo miejsca na cały tekst.   
-`snprintf`: To bezpieczniejsza wersja funkcji `sprintf`, która przyjmuje dodatkowy argument `n` określający maksymalny rozmiar bufora. Funkcja ta upewnia się, że nie zapisze więcej niż `n` bajtów (nadmiarowe znaki są odrzucane), a na końcu zawsze umieszcza znak `\0`. Jeśli `n` wynosi zero, funkcja nic nie zapisuje do bufora.   
+`snprintf`: To bezpieczniejsza wersja funkcji `sprintf`, która przyjmuje dodatkowy argument `n` określający maksymalny rozmiar bufora. Funkcja ta upewnia się, że nie zapisze więcej niż `n` bajtów (nadmiarowe znaki są odrzucane), a na końcu zawsze umieszcza znak `\0`. Jeśli `n` wynosi zero, funkcja nic nie zapisuje do bufora.
+
 `printf`, `fprintf` oraz `dprintf`: Zwracają całkowitą liczbę bajtów, która została pomyślnie wysłana do strumienia lub pliku.   
 `sprintf`: Zwraca liczbę bajtów zapisanych do bufora `s`, nie wliczając w to końcowego znaku `\0`.   
 `snprintf`: Zwraca liczbę bajtów, która zostałaby zapisana w buforze, gdyby limit `n` był wystarczająco duży (również z pominięciem znaku `\0`). Ta unikalna cecha pozwala programiście łatwo sprawdzić, czy jego bufor okazał się za mały, by pomieścić całą wygenerowaną treść.
