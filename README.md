@@ -187,6 +187,8 @@ Funkcja `fseek` przyjmuje wskaźnik `FILE` i pozwala nam przesunąć się na odp
 3. `SEEK_END` - punktem odniesienia jest koniec pliku. Kursor pliku będzie wskazywał na dane tylko jeśli wartość `offset` jest ujemna.
 Dla wartości `offset` **równej 0 kursor pliku ustawiony jest na bajt po ostatnim bajcie pliku**. Odczytanie pozycji kursora funkcją `ftell` podaje wtedy dokładny rozmiar pliku w bajtach. Operacja ta pozwala programiście **zaalokować dokładną ilość bajtów która będzie potrzebna na wczytanie** całego pliku.
 
+**W programie nie wypełniamy pliku zerami, dzieje się to automatycznie ponieważ gdy zapisujemy coś poza aktualnym końcem pliku system automatycznie dopełnia lukę** zerami. Co więcej, jeśli tych zer ciągiem jest sporo to nie zajmują one sektorów dysku!
+
 ### man 3p fread
 
 ```C
@@ -205,7 +207,7 @@ Zwrócona wartość oznacza liczbę elementów wczytanych z sukcesem. Będzie on
 int fclose(FILE *stream);
 ```
 
-# man 3p unlink
+### man 3p unlink
 
 ```C
 #include <unistd.h>
@@ -238,6 +240,39 @@ Bezpieczna nawigacja (Omijanie Race Conditions):
 Usuwanie katalogów (Flaga `AT_REMOVEDIR`):   
 W przeciwieństwie do zwykłego `unlink`, `unlinkat` potrafi legalnie i bezpiecznie usunąć również katalog, zachowując się jak funkcja `rmdir()`. Wystarczy jako trzeci parametr (flag) przekazać jej specjalną flagę systemową `AT_REMOVEDIR`.   
 Zarówno `unlink`, jak i `unlinkat` zwracają wartość 0 w przypadku poprawnego usunięcia dowiązania lub -1 w razie błędu, odpowiednio ustawiając zmienną errno (np. na EACCES dla braku uprawnień). 
+
+### man 3p umask
+
+```C
+#include <sys/stat.h>
+mode_t umask(mode_t cmask);
+```
+
+Zasada działania: `umask` to systemowa "czarna lista". Określa, jakie uprawnienia należy zabrać (zablokować) przy tworzeniu pliku, a nie jakie mu dać.   
+Wzór `umask(~perms & 0777)`:   
+`perms` – uprawnienia, które fizycznie chcesz uzyskać na dysku (np. `0777`).   
+`~` (negacja) – tłumaczy Twoje chęci na język blokad. Jeśli chcesz dać uprawnienia na wszystko, odwraca bity tak, aby kazać systemowi "zablokować nic" (`0000`).   
+`& 0777` (sekator) – ucina niewidoczne zera i jedynki z 32-bitowej zmiennej pamięci, gwarantując, że do systemu trafi czyste i zrozumiałe 9 bitów uprawnień.
+
+Zapisywanie i przywracanie:   
+Funkcja `umask()` zawsze zwraca starą listę blokad w momencie jej zmiany.   
+`mode_t stara = umask(0000);` wyłącza filtry i chowa starą "tarczę" (np. `0022`) do zmiennej.
+`umask(stara);` nie wykonuje żadnego odejmowania. Po prostu nadpisuje obecne ustawienia, przywracając starą "czarną listę" zakazów, żeby inne pliki tworzone w programie miały domyślną ochronę.
+
+### man 3p getopt
+
+```C
+#include <unistd.h>
+int getopt(int argc, char * const argv[], const char *optstring);
+extern char *optarg;
+extern int opterr, optind, optopt;
+```
+
+`optstring`: To tekst (np. `":abf:o:"`), w którym definiujesz, jakich flag oczekujesz. Jeśli po literze znajduje się dwukropek (`:`), oznacza to, że opcja wymaga podania wartości (argumentu). Jeśli dwukropek jest na samym początku całego ciągu, wycisza to domyślne systemowe komunikaty o błędach, pozwalając programiście obsłużyć je samodzielnie.   
+`optarg`: Zewnętrzna zmienna tekstowa (wskaźnik). Jeśli opcja wymaga wartości (np. `-f nazwa.txt`), po jej znalezieniu getopt automatycznie ustawi wskaźnik `optarg` tak, by celował prosto w ten argument.   
+`optind`: Licznik oznaczający indeks następnego elementu w tablicy `argv`, który czeka na przetworzenie. System inicjalizuje go wartością 1 i samodzielnie zwiększa w miarę działania funkcji.   
+`optopt`: Jeśli użytkownik poda nierozpoznaną flagę lub zapomni wpisać dla niej wartości, getopt zapisuje ten błędny znak właśnie w zmiennej `optopt`, aby można go było wypisać w komunikacie błędu.   
+Zwracana wartość: Gdy funkcja **pomyślnie przeanalizuje wszystkie dostępne opcje zaczynające się od myślnika**, zwraca ostatecznie wartość `-1`.
 
 # Zadanie z lab1
 
