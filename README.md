@@ -88,7 +88,7 @@ char   d_name[]    -> nazwa pliku
 
 ```C
 #include <sys/stat.h>	// Tam jest więcej o polach w strukturze stat
-int  stat(const char *restrict path, struct stat *restrict buf);
+int stat(const char *restrict path, struct stat *restrict buf);
 int lstat(const char *restrict path, struct stat *restrict buf);
 int fstat(int fildes, struct stat *buf);
 ```
