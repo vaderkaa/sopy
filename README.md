@@ -10,6 +10,19 @@ Tablica wskaźników to zbiór adresów początkowych poszczególnych słów.
 Argument zerowy `argv[0]` to zawsze nazwa programu.   
 Aby parametrem uczynić dwa lub więcej słów trzeba ująć je w apostrofy albo wpisać znak \ przed każdą spacją (lub innym tzw. białym znakiem).
 
+### man 3p fprintf
+
+`printf`: Wypisuje sformatowany tekst na standardowe wyjście (strumień `stdout`), czyli domyślnie na ekran terminala.   
+`fprintf`: Wypisuje tekst do wskazanego strumienia, podanego jako argument `stream` (np. do pliku otwartego wcześniej za pomocą `fopen`).   
+`dprintf`: Działa analogicznie do `fprintf`, ale zamiast wskaźnika na strumień, przyjmuje tzw. deskryptor pliku (`fildes`), czyli niskopoziomowy identyfikator pliku w postaci liczby całkowitej.   
+`sprintf`: Zapisuje sformatowany tekst do bufora w pamięci (tablicy znaków `s`) i automatycznie dokleja na końcu znak terminacji `\0`. Użycie tej funkcji wymaga ostrożności, ponieważ to na programiście spoczywa obowiązek zagwarantowania, że w buforze jest wystarczająco dużo miejsca na cały tekst.   
+`snprintf`: To bezpieczniejsza wersja funkcji `sprintf`, która przyjmuje dodatkowy argument `n` określający maksymalny rozmiar bufora. Funkcja ta upewnia się, że nie zapisze więcej niż `n` bajtów (nadmiarowe znaki są odrzucane), a na końcu zawsze umieszcza znak `\0`. Jeśli `n` wynosi zero, funkcja nic nie zapisuje do bufora.   
+`printf`, `fprintf` oraz `dprintf`: Zwracają całkowitą liczbę bajtów, która została pomyślnie wysłana do strumienia lub pliku.   
+`sprintf`: Zwraca liczbę bajtów zapisanych do bufora `s`, nie wliczając w to końcowego znaku `\0`.   
+`snprintf`: Zwraca liczbę bajtów, która zostałaby zapisana w buforze, gdyby limit `n` był wystarczająco duży (również z pominięciem znaku `\0`). Ta unikalna cecha pozwala programiście łatwo sprawdzić, czy jego bufor okazał się za mały, by pomieścić całą wygenerowaną treść.
+
+Wpisanie danych `fprintf`, `fputc`, `fputs`, `fwrite` lub wczytanie ich `fscanf`, `fgetc`, `fgets`, `fread`.
+
 ### man 3p errno
 
 ```C
@@ -142,7 +155,7 @@ int chdir(const char *path);
 
 `path` jest ścieżką do nowego katalogu roboczego (może być względna lub bezwzględna), tak jak wiele funkcji systemowych zwracających `int`, funkcja `chdir` zwraca 0 w przypadku sukcesu i inną wartość w razie niepowodzenia.
 
-### man 3p fopen
+### man 3p fopen - TRZEBA O TYM PAMIETAC!!!
 
 ```C
 FILE *fopen(const char *restrict pathname, const char *restrict mode);
