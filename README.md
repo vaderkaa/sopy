@@ -75,8 +75,6 @@ if (errno != 0) {
 }
 ```
 
-### readdir_r ???
-
 ### man 0p dirent.h
 
 ```C
