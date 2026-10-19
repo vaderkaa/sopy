@@ -30,6 +30,18 @@ Wpisanie danych `fprintf`, `fputc`, `fputs`, `fwrite` lub wczytanie ich `fscanf`
 #include <errno.h>
 ```
 
+### man 3p dirfd
+
+```C
+dirfd(DIR *dirp)
+```
+
+### man 3p fileno
+
+```C
+fileno(FILE* stream)
+```
+
 ### man 3p fdopendir
 
 ```C
