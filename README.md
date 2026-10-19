@@ -114,6 +114,8 @@ Makra przyjmujące `buf->st_mode` (pole typu `mode_t`):
 
 Jedyną różnicą w działaniu funkcji `stat` i `lstat` jest obsługa linków. stat zwróci informacje o pliku, do którego dany link prowadzi, natomiast lstat zwróci informacje o samym linku.
 
+`fstatat(dirfd(dirp), dp->d_name, &filestat, AT_SYMLINK_NOFOLLOW)`, gdy chcemy otworzyć plik nie w folderze roboczym
+
 ```C
 struct stat buffer;
 fstat(fildes, &buffer);
