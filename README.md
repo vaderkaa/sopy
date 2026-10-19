@@ -273,6 +273,14 @@ extern int opterr, optind, optopt;
 `optopt`: Jeśli użytkownik poda nierozpoznaną flagę lub zapomni wpisać dla niej wartości, getopt zapisuje ten błędny znak właśnie w zmiennej `optopt`, aby można go było wypisać w komunikacie błędu.   
 Zwracana wartość: Gdy funkcja **pomyślnie przeanalizuje wszystkie dostępne opcje zaczynające się od myślnika**, zwraca ostatecznie wartość `-1`.
 
+Znak znalezionej opcji (np. 'a', 'b', 'f'): Gdy funkcja znajdzie prawidłową, rozpoznaną flagę (zdefiniowaną w optstring), zwraca po prostu jej znak (kod ASCII tej litery). Jeśli flaga wymagała wartości, dodatkowo ustawia wskaźnik optarg.
+
+Znak zapytania '?': Zwraca go w przypadku błędu – gdy użytkownik poda flagę, której nie ma w Twoim optstring (nierozpoznana opcja), lub gdy flaga wymagała argumentu, ale użytkownik zapomniał go wpisać. Rzeczywisty, błędnie wpisany znak ląduje wtedy w zmiennej optopt.
+
+Dwukropek ':': Zwraca go zamiast '?' w przypadku braku wymaganego argumentu, ale tylko wtedy, gdy Twój optstring zaczyna się od dwukropka (np. ":abf:o:").
+
+Wartość -1: Gdy funkcja przeanalizuje już wszystkie dostępne opcje zaczynające się od myślnika i skończy pracę, zwraca -1. To ostateczny sygnał dla programu, że należy przerwać pętlę sprawdzającą.
+
 ### man 3p mkdir
 
 ```C
