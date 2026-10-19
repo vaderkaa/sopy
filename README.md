@@ -30,6 +30,18 @@ Wpisanie danych `fprintf`, `fputc`, `fputs`, `fwrite` lub wczytanie ich `fscanf`
 #include <errno.h>
 ```
 
+### man 3p dirfd
+
+```C
+dirfd(DIR *dirp)
+```
+
+### man 3p fileno
+
+```C
+fileno(FILE* stream)
+```
+
 ### man 3p fdopendir
 
 ```C
@@ -75,8 +87,6 @@ if (errno != 0) {
 }
 ```
 
-### readdir_r ???
-
 ### man 0p dirent.h
 
 ```C
@@ -103,6 +113,8 @@ Makra przyjmujące `buf->st_mode` (pole typu `mode_t`):
 `S_ISLNK(m)` – czy mamy do czynienia z linkiem.
 
 Jedyną różnicą w działaniu funkcji `stat` i `lstat` jest obsługa linków. stat zwróci informacje o pliku, do którego dany link prowadzi, natomiast lstat zwróci informacje o samym linku.
+
+`fstatat(dirfd(dirp), dp->d_name, &filestat, AT_SYMLINK_NOFOLLOW)`, gdy chcemy otworzyć plik nie w folderze roboczym
 
 ```C
 struct stat buffer;
@@ -274,6 +286,123 @@ extern int opterr, optind, optopt;
 `optind`: Licznik oznaczający indeks następnego elementu w tablicy `argv`, który czeka na przetworzenie. System inicjalizuje go wartością 1 i samodzielnie zwiększa w miarę działania funkcji.   
 `optopt`: Jeśli użytkownik poda nierozpoznaną flagę lub zapomni wpisać dla niej wartości, getopt zapisuje ten błędny znak właśnie w zmiennej `optopt`, aby można go było wypisać w komunikacie błędu.   
 Zwracana wartość: Gdy funkcja **pomyślnie przeanalizuje wszystkie dostępne opcje zaczynające się od myślnika**, zwraca ostatecznie wartość `-1`.
+
+Znak znalezionej opcji (np. 'a', 'b', 'f'): Gdy funkcja znajdzie prawidłową, rozpoznaną flagę (zdefiniowaną w optstring), zwraca po prostu jej znak (kod ASCII tej litery). Jeśli flaga wymagała wartości, dodatkowo ustawia wskaźnik optarg.
+
+Znak zapytania '?': Zwraca go w przypadku błędu – gdy użytkownik poda flagę, której nie ma w Twoim optstring (nierozpoznana opcja), lub gdy flaga wymagała argumentu, ale użytkownik zapomniał go wpisać. Rzeczywisty, błędnie wpisany znak ląduje wtedy w zmiennej optopt.
+
+Dwukropek ':': Zwraca go zamiast '?' w przypadku braku wymaganego argumentu, ale tylko wtedy, gdy Twój optstring zaczyna się od dwukropka (np. ":abf:o:").
+
+Wartość -1: Gdy funkcja przeanalizuje już wszystkie dostępne opcje zaczynające się od myślnika i skończy pracę, zwraca -1. To ostateczny sygnał dla programu, że należy przerwać pętlę sprawdzającą.
+
+### man 3p mkdir
+
+```C
+#include <sys/stat.h>
+int mkdir(const char *path, mode_t mode);
+#include <fcntl.h>
+int mkdirat(int fd, const char *path, mode_t mode);
+```
+
+Należy pamiętać, że w przypadku katalogów niezbędne są uprawnienia do wykonania (`x`), które w tym wypadku oznaczają możliwość przejście przez katalog i dostęp do plików i katalogów wewnątrz niego.
+
+### man 3p chmod
+
+```C
+#include <sys/stat.h>
+int chmod(const char *path, mode_t mode);
+#include <fcntl.h>
+int fchmodat(int fd, const char *path, mode_t mode, int flag);
+```
+
+Przy użyciu wspomnianych wcześniej funkcji `stat` i `lstat` możemy sprawdzać uprawnienia pliku.
+
+R (Read - odczyt), W (Write - zapis), X (Execute - wykonanie).   
+USR (User/Właściciel), GRP (Grupa), OTH (Others/Inni).   
+Przykład: `S_IRUSR | S_IWUSR` to odczyt i zapis dla właściciela (odpowiednik liczbowy 0600).   
+Skróty: Np. `S_IRWXU` nadaje od razu pełen pakiet (odczyt, zapis, wykonanie) dla właściciela (odpowiednik 0700).
+
+### man 3p access
+
+```C
+#include <unistd.h>
+int access(const char *path, int amode);
+#include <fcntl.h>
+int faccessat(int fd, const char *path, int amode, int flag);
+```
+
+Należy pamiętać, że żeby zmienić uprawnienia nasz proces musi mieć uprawnienia do zapisu danego pliku. Wygodnym sposobem, żeby sprawdzić, czy plik istnieje i mamy odpowiednie uprawnienia jest funkcja `access`.
+
+Należy uważać, bo parametr amode nie jest tym samym co `mode` w `chmod` i `mkdir`. Przyjmuje jedną z czterech flag lub ich kombinację (przez `|`) w zależności od tego, co chcemy sprawdzić: `F_OK` (istnienie), `R_OK` (odczyt), `W_OK` (zapis), `X_OK` (wykonanie).
+
+### man 3p link
+
+```C
+#include <unistd.h>
+int link(const char *path1, const char *path2);
+#include <fcntl.h>
+int linkat(int fd1, const char *path1, int fd2, const char *path2, int flag);
+```
+
+Służy do tworzenia hardlinków. Ma ich nie być na labach.
+
+### man 3p readlink
+
+```C
+#include <unistd.h>
+ssize_t readlink(const char *restrict path, char *restrict buf, size_t bufsize);
+#include <fcntl.h>
+ssize_t readlinkat(int fd, const char *restrict path, char *restrict buf, size_t bufsize);
+```
+
+Używamy `readlink` do sprawdzenia, na jaki plik wskazuje dany symlink.
+Istotne w użyciu tej funkcji jest fakt, że sami musimy zaalokować bufor `buf`, w którym umieści wynik.
+
+```C
+char buf[1024]; // Na stercie size_t buf_size = 1024; char *buf = malloc(buf_size); free(buf);
+ssize_t len;
+...
+if ((len = readlink("/modules/pass1", buf, sizeof(buf)-1)) != -1)
+	buf[len] = '\0';
+```
+
+Dowiązania symboliczne są tak naprawdę specjalnym rodzajem pliku, zawierającym ścieżkę do innego pliku. Jeżeli plik na który wskazuje dowiązanie symboliczne zmieni nazwę takie dowiązanie przestanie być poprawne - plik na który wskazuje przestaje istnieć.
+
+Mamy dwie funkcje `stat` i `lstat` - `lstat` zwróci informację o symlinku jako o pliku, natomiast `stat` o pliku na który wskazuje.
+
+### man 3p symlink
+
+```C
+#include <unistd.h>
+int symlink(const char *path1, const char *path2);
+#include <fcntl.h>
+int symlinkat(const char *path1, int fd, const char *path2);
+```
+
+Jej wywołanie tworzy dowiązanie symboliczne o ścieżce path2 do pliku o nazwie path1 (czyli `path2->path1`, `->` oznacz ,,wskazuje na’’). W terminalu mamy bezpośredni odpowiednik tej funkcji `ln -s <TARGET> <PATH>` (**man 1 ln**).   
+
+Rozważ następujący przypadek:   
+W naszym katalogu roboczym mamy dwa podkatalogi `a` oraz `b`. W katalogu `a` tworzymy plik `file.txt`. Chcemy teraz stworzyć dowiązanie symboliczne do tego pliku w katalogu `b` o nazwie np. `file.txt_bak` Wywołujemy więc `ln -s a/file.txt b/file.txt_bak`. Czy to zadziała poprawnie?   
+Nie, nie zadziała! Zostanie stworzone dowiązanie `b/file.txt_bak` jednak będzie ono wskazywać na względną ścieżkę `a/file.txt`, która z punktu widzenia pliku `b/file.txt_bak` jest niepoprawna, bo dla niego ścieżka do tego pliku to `../a/file.txt`.
+Żeby poprawnie stworzyć dowiązanie z naszego katalogu roboczego musimy wywołać `ln -s ../a/file.txt b/file.txt_bak` - wygląda nieintuicyjnie na pierwszy rzut oka, ale po prostu trzeba pamiętać, że ścieżka docelowa jest zawsze z punktu widzenia dowiązania. Alternatywnie możemy wejść do katalogu b i stamtąd wywołać `ln -s ../a/file.txt file.txt_bak`. Aby wygodnie podejrzeć na jaki plik wskazuje dowiązania w danym katalogu najlepiej użyć `ls -l`.
+
+Zawsze możesz stworzyć dowiązanie oparte na ścieżce bezwzględnej (od samego początku dysku, np. `ln -s /home/student/a/file.txt b/file.txt_bak`, ale na labach raczej nie, bo trzeba to przesyłać, więc chodzi o relację miedzy folderami.
+
+### buforowanie
+
+1. Zwykły printf (Standardowe wyjście - stdout)   
+Ma bufor (poczekalnię). Nie wypisuje od razu!   
+W terminalu: Wyrzuca tekst na ekran dopiero, gdy zobaczy znak nowej linii (`\n`). Bez `\n` ekran jest pusty, aż program dobiegnie końca.   
+Zapis do pliku: Czeka, aż zbierze "dużą paczkę" danych. Jeśli przerwiesz program (`Ctrl+C`) w trakcie działania, pusty bufor = utrata danych!
+
+2. Debugowanie i błędy (fprintf(stderr, ...))   
+Brak bufora. Wyrzuca tekst natychmiast!   
+Do czego: Używaj do debugowania (np. sprawdzania czy program wszedł w pętlę) oraz wypisywania błędów. Jeśli program nagle zginie, masz pewność, że to wywołanie zdążyło wyświetlić się na ekranie.   
+Składnia: `fprintf(stderr, "Moja zmienna to: %d\n", i);`
+
+3. Przekierowania w terminalu (Strzałki)   
+`./program > plik` – wyrzuca normalne wyniki (printf) do pliku. Na ekranie nic nie widać, terminal milczy.   
+`./program 2> plik` – wyrzuca błędy i logi (stderr) do pliku. Ważne: 2> piszemy razem, bez spacji!
 
 # Zadanie z lab1
 
