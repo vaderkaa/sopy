@@ -1,3 +1,9 @@
+​/*Działa to w następujących krokach:
+​Tworzenie pliku tymczasowego: Generuje ścieżkę do pliku o nazwie temp wewnątrz katalogu środowiska i otwiera go do zapisu (fp_temp).
+​Przepisywanie zawartości: Otwiera oryginalny plik requirements (fp) i czyta go linijka po linijce za pomocą getline. Pętla przepisuje do pliku tymczasowego wszystkie linie, opijając tylko tę jedną dotyczącą usuwananego pakietu (rev_name).
+​Usuwanie fizycznego pliku pakietu: Skleja ścieżkę do "fałszywego" pliku reprezentującego zainstalowany pakiet (np. moje_srodowisko/numpy) i fizycznie usuwa go z dysku za pomocą funkcji unlink(remove_path).
+​Podmiana plików: Zamyka oba pliki, następnie usuwa stary, nieaktualny plik requirements (unlink(path)) i zmienia nazwę pliku tymczasowego na requirements (rename(temp_path, path)).*/
+
 if (remove == true) {
 
                 FILE* fp_temp;
