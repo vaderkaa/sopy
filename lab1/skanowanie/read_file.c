@@ -1,3 +1,4 @@
+// Usuwanie konkretnej linijki z pliku
 FILE* fp;
 
                 if ((fp = fopen(path, "r")) == NULL) {
