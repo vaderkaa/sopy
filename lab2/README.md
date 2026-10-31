@@ -2,6 +2,14 @@
 
 ### man 3p open
 
+```C
+#include <sys/stat.h>
+#include <fcntl.h>
+
+int open(const char *path, int oflag, ...);
+int openat(int fd, const char *path, int oflag, ...); // W 3 parametrze podajemy uprawnienia
+```
+
 Zgodnie z dokumentacją zawartą w pliku open.txt, wywołanie `open()` pozwala na użycie wielu flag konfiguracyjnych, z których należy wybrać dokładnie jedną podstawową flagę trybu dostępu, a następnie połączyć ją z dowolnymi flagami opcjonalnymi za pomocą bitowego OR (`|`).
 
 **Podstawowe flagi trybu dostępu (należy wybrać dokładnie jedną):**
