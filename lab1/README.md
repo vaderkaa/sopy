@@ -1,4 +1,4 @@
-# Sopy 1
+# LAB 1
 
 ### man 1 xargs
 
