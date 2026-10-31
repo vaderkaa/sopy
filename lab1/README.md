@@ -404,7 +404,7 @@ Składnia: `fprintf(stderr, "Moja zmienna to: %d\n", i);`
 `./program > plik` – wyrzuca normalne wyniki (printf) do pliku. Na ekranie nic nie widać, terminal milczy.   
 `./program 2> plik` – wyrzuca błędy i logi (stderr) do pliku. Ważne: 2> piszemy razem, bez spacji!
 
-# Zadanie z lab1
+# Zadanie z warsztatów
 
 ### C
 
