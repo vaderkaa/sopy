@@ -52,7 +52,7 @@ Zgodnie z dokumentacją zawartą w pliku open.txt, wywołanie `open()` pozwala n
 * `[EMFILE]`: Twój proces ma już otwarte wszystkie dostępne dla niego deskryptory plików.
 * `[ENFILE]`: Osiągnięto globalny, systemowy limit maksymalnej liczby otwartych plików.
 
-**`int openat(int fd, const char *path, int oflag, ...);`**
+**Co mi daje `int openat(int fd, const char *path, int oflag, ...);`?**
 
 Kiedy używasz zwykłej funkcji, np. `open("plik.txt", ...)`, system operacyjny zawsze szuka tego pliku w *bieżącym katalogu roboczym* (czyli w miejscu, z którego uruchomiłaś program). Jeśli plik znajduje się głęboko w innym miejscu na dysku, masz normalnie dwa wyjścia:
 
