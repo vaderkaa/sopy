@@ -168,7 +168,7 @@ int chdir(const char *path);
 
 `path` jest ścieżką do nowego katalogu roboczego (może być względna lub bezwzględna), tak jak wiele funkcji systemowych zwracających `int`, funkcja `chdir` zwraca 0 w przypadku sukcesu i inną wartość w razie niepowodzenia.
 
-### man 3p fopen - TRZEBA O TYM PAMIĘTAĆ!!!
+### man 3p fopen
 
 ```C
 FILE *fopen(const char *restrict pathname, const char *restrict mode);
