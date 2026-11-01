@@ -140,14 +140,14 @@ ssize_t writev(int fildes, const struct iovec *iov, int iovcnt);
 
 Funkcja `writev` oferuje wygodne rozwiązanie w przypadku gdy dane które chcemy zapisać nie znajdują się w jednym ciągłym fragmencie pamięci. Pozwala ona zebrać dane z wielu miejsc i zapisać je w pliku za pomocą jednego wywołania funkcji. Znajduje się w nagłówku `<sys/uio.h>`.
 
-`filedes` - deskryptor do którego zapisywane są dane,
-`iov` - tablica struktur opisujących bufory z których funkcja zbiera dane - struct iovec (man 0p sys_uio.h), które mają następujące pola:
-`void   *iov_base` -> wskaźnik na obszar pamięci
-`size_t  iov_len`  -> długość obszaru pamięci
-`iovcnt` - rozmiar tablicy `iov`.
-Funkcja ta zapisuje do filedes:
-`iov[0].iov_len` bajtów zaczynając od `iov[0].iov_base`, następnie
-`iov[1].iov_len` bajtów zaczynając od `iov[1].iov_base`, … aż do
+`filedes` - deskryptor do którego zapisywane są dane,   
+`iov` - tablica struktur opisujących bufory z których funkcja zbiera dane - struct iovec (man 0p sys_uio.h), które mają następujące pola:   
+`void   *iov_base` -> wskaźnik na obszar pamięci   
+`size_t  iov_len`  -> długość obszaru pamięci   
+`iovcnt` - rozmiar tablicy `iov`.   
+Funkcja ta zapisuje do filedes:   
+`iov[0].iov_len` bajtów zaczynając od `iov[0].iov_base`, następnie   
+`iov[1].iov_len` bajtów zaczynając od `iov[1].iov_base`, … aż do   
 `iov[iovcnt-1].iov_len` bajtów zaczynając od `iov[iovcnt-1].iov_base`.
 
 ```C
@@ -179,8 +179,8 @@ bytes_written = writev(fd, iov, iovcnt); // Suma dlugosci wszystkich trzech lanc
 ssize_t readv(int fildes, const struct iovec *iov, int iovcnt);
 ```
 
-`filedes` - deskryptor z którego czytane są dane,
-`iov` - tablica struktur struct iovec opisujących bufory do których funkcja rozprasza dane.
+`filedes` - deskryptor z którego czytane są dane,   
+`iov` - tablica struktur struct iovec opisujących bufory do których funkcja rozprasza dane.   
 `iovcnt` - rozmiar tablicy `iov`.
 
 ```C
@@ -238,7 +238,7 @@ int fildes, off_t off);
 
 **Przykład**
 
-`char *buff = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);`
+`char *buff = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);`   
 W ten sposób prosimy system operacyjny o "zmapowanie" pliku o deskryptorze `fd` do pamięci o rozmiarze `length` tak, żebyśmy mogli go zarówno czytać jak i modyfikować (`PROT_READ | PROT_WRITE`). Wynikiem jest wskaźnik na zmapowaną pamięć lub wartość `MAP_FAILED` gdy wystąpi błąd.   
 `mmap` pozwala nam bardzo wygodnie modyfikować pliki, tak samo jak zwykłe tablice. Dwie funkcje pomocnicze to `msync` i `munmap`.
 
@@ -267,3 +267,44 @@ msync(buff, length, MS_SYNC); // Wymusza zapisanie modyfikacji na dysk. Flaga MS
 munmap(buff, length); // Zrywa mapowanie, oddaje RAM i buf[0] grozi od teraz segmentation fault
 close(fd);
 ```
+
+### man 3p fcntl
+
+```C
+#include <fcntl.h>
+
+int fcntl(int fildes, int cmd, ...);
+```
+
+Podanie `F_GETFL` sprawia, że funkcja zwraca aktualnie ustawione flagi jako maskę bitową zapisaną w zmiennej typu `int`.
+Użycie `F_SETFL` wymaga podania maski definiującej flagi, jakie chcemy ustawić. Dlatego zwykle proces ustawiania flag deskryptora wygląda jak w funkcji `set_nonblocking()` w poniższym kodzie. Najpierw pobieramy aktualne flagi, ustawiamy te pola, które nas interesują, a następnie zapisujemy. Próba ustawienia flag poprzez wywołanie np. `fcntl(fd, F_SETFL, O_NONBLOCK)` jest błędem, ponieważ w ten sposób przy okazji **resetujemy wszystko** poza flagą `O_NONBLOCK`.
+
+```C
+void set_nonblocking(int fd)
+{
+    int flags = fcntl(fd, F_GETFL); // Pobiera wszystkie obecne ustawienia tego pliku
+    if (flags == -1)
+        ERR("fcntl");
+    flags |= O_NONBLOCK;                 // Dodaje flage do ustawien
+    if (fcntl(fd, F_SETFL, flags) == -1) // SETFL - set file status flags
+        ERR("fcntl");
+}
+```
+
+### man 3p poll
+
+```C
+#include <poll.h>
+
+int poll(struct pollfd fds[], nfds_t nfds, int timeout);
+```
+
+`fds` - tablica struktur z desktryptorami, na które będziemy czekać,   
+`nfds` - oczywiście rozmiar tej tablicy,   
+`timeout` - poll zakończy się gdy któryś z deskryptorów będzie gotowy do wykonania operacji albo osiągnięty zostanie `timeout` w milisekundach. Możemy też podać tam wartość `-1` żeby czekać w nieskończoność.
+
+### man 0p poll.h
+
+`int fd` - deskryptor na który będziemy czekać   
+`short events` - bitmaska w której zapisujemy wydarzenia (events) na które chcemy czekać. Dla na istotne jest przede wszystkim `POLLIN` czyli oczekiwanie aż **deskryptor będzie miał gotowe do odczytu dane,** oraz `POLLOUT` - gdy **deskryptor będzie gotowy do zapisu.**   
+`short revents` - od return events - w tej bitmasce poll ustawi flagi wskazujące, co było **przyczyną jego zakończenia** - może to być przede wszystkim to, co ustawiliśmy w events (`POLLIN` lub `POLLOUT`), ale także wartości oznaczające, że wystąpił błąd lub problem z deskryptorem.
