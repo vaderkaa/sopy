@@ -240,6 +240,17 @@ Dla wartości `offset` **równej 0 kursor pliku ustawiony jest na bajt po ostatn
 
 **W programie nie wypełniamy pliku zerami, dzieje się to automatycznie ponieważ gdy zapisujemy coś poza aktualnym końcem pliku system automatycznie dopełnia lukę** zerami. Co więcej, jeśli tych zer ciągiem jest sporo to nie zajmują one sektorów dysku!
 
+### man 3p ftell
+
+```C
+#include <stdio.h>
+
+long ftell(FILE *stream);
+off_t ftello(FILE *stream);
+```
+
+Funkcja `ftell` zwraca aktualną pozycję (offset) wskaźnika w otwartym strumieniu pliku, ale pamiętaj, aby podczas obsługi błędów zawsze najpierw sprawdzać, czy funkcja zwróciła `-1`, zamiast ślepo polegać na zmiennej `errno`, która (szczególnie w wariancie `ftello`) może przyjąć mylącą wartość nawet po w pełni udanej operacji.
+
 ### man 3p fread
 
 ```C
