@@ -129,3 +129,77 @@ off_t lseek(int fildes, off_t offset, int whence);
 ```
 
 Jako parametr whence możemy podać `SEEK_SET` (ustawienie kursora na daną pozycję), `SEEK_CUR` (przesunięcie kursora względem aktualnej pozycji) albo `SEEK_END` (przesunięcie kursora za koniec pliku). Jako, że lseek zwraca pozycję kursora po wykonaniu operacji, wywołanie go z parametrami `0` i `SEEK_CUR` pozwala uzyskać aktualną pozycję w pliku.
+
+### man 3p writev
+
+```C
+#include <sys/uio.h>
+
+ssize_t writev(int fildes, const struct iovec *iov, int iovcnt);
+```
+
+Funkcja `writev` oferuje wygodne rozwiązanie w przypadku gdy dane które chcemy zapisać nie znajdują się w jednym ciągłym fragmencie pamięci. Pozwala ona zebrać dane z wielu miejsc i zapisać je w pliku za pomocą jednego wywołania funkcji. Znajduje się w nagłówku `<sys/uio.h>`.
+
+`filedes` - deskryptor do którego zapisywane są dane,
+`iov` - tablica struktur opisujących bufory z których funkcja zbiera dane - struct iovec (man 0p sys_uio.h), które mają następujące pola:
+`void   *iov_base` -> wskaźnik na obszar pamięci
+`size_t  iov_len`  -> długość obszaru pamięci
+`iovcnt` - rozmiar tablicy `iov`.
+Funkcja ta zapisuje do filedes:
+`iov[0].iov_len` bajtów zaczynając od `iov[0].iov_base`, następnie
+`iov[1].iov_len` bajtów zaczynając od `iov[1].iov_base`, … aż do
+`iov[iovcnt-1].iov_len` bajtów zaczynając od `iov[iovcnt-1].iov_base`.
+
+```C
+ssize_t bytes_written;
+int fd;
+char *buf0 = "short string\n";
+char *buf1 = "This is a longer string\n";
+char *buf2 = "This is the longest string in this example\n";
+int iovcnt;
+struct iovec iov[3];
+
+iov[0].iov_base = buf0;
+iov[0].iov_len = strlen(buf0);
+iov[1].iov_base = buf1;
+iov[1].iov_len = strlen(buf1);
+iov[2].iov_base = buf2;
+iov[2].iov_len = strlen(buf2);
+...
+iovcnt = sizeof(iov) / sizeof(struct iovec); // WIelkosc w bajtach calej tablicy na rozmiar jednego elementu
+
+bytes_written = writev(fd, iov, iovcnt); // Suma dlugosci wszystkich trzech lancuchow
+```
+
+### man 3p readv
+
+```C
+#include <sys/uio.h>
+
+ssize_t readv(int fildes, const struct iovec *iov, int iovcnt);
+```
+
+`filedes` - deskryptor z którego czytane są dane,
+`iov` - tablica struktur struct iovec opisujących bufory do których funkcja rozprasza dane.
+`iovcnt` - rozmiar tablicy `iov`.
+
+```C
+ssize_t bytes_read;
+int fd;
+char buf0[20];
+char buf1[30];
+char buf2[40];
+int iovcnt;
+struct iovec iov[3];
+
+iov[0].iov_base = buf0;
+iov[0].iov_len = sizeof(buf0);
+iov[1].iov_base = buf1;
+iov[1].iov_len = sizeof(buf1);
+iov[2].iov_base = buf2;
+iov[2].iov_len = sizeof(buf2);
+...
+iovcnt = sizeof(iov) / sizeof(struct iovec);
+
+bytes_read = readv(fd, iov, iovcnt);
+```
