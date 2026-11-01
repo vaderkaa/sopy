@@ -85,6 +85,10 @@ ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset); // Pozycja sta
 ssize_t read(int fildes, void *buf, size_t nbyte);
 ```
 
+`filedes` - deskryptor pliku, pozyskany z open,   
+`buf` - wskaźnik na bufor w którym zapisane będą dane,   
+`nbyte` - rozmiar danych których ma oczekiwać funkcja.   
+
 **1. Zwracane wartości i zachowanie wskaźnika:**
 
 * **Zwraca to, co faktycznie przeczytał:** Funkcja zwraca liczbę rzeczywiście odczytanych bajtów, co może być mniejszą wartością, niż ta, o którą prosiłaś (np. jeśli plik się kończy przed wczytaniem całego bufora).
