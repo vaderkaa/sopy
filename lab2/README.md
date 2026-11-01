@@ -203,3 +203,67 @@ iovcnt = sizeof(iov) / sizeof(struct iovec);
 
 bytes_read = readv(fd, iov, iovcnt);
 ```
+
+
+### man 3p mmap
+
+```C
+#include <sys/mman.h>
+
+void *mmap(void *addr, size_t len, int prot, int flags,
+int fildes, off_t off);
+```
+
+**Jak działa?**
+
+**Połączenie:** Ustanawia bezpośrednie mapowanie między przestrzenią adresową Twojego programu (pamięcią RAM) a plikiem na dysku.   
+**Wskaźnik:** Zwraca zwykły wskaźnik (adres) do tej pamięci.   
+**Magia w tle:** Traktujesz plik dokładnie tak samo jak lokalną tablicę w C (np. `buff[0] = 'X'`). Nie używasz read ani write, a system operacyjny automatycznie, w tle sprzęga te modyfikacje w RAM-ie z fizycznym dyskiem twardym.
+
+**Argumenty funkcji**
+
+* **`addr` (Sugerowany adres):** Określa miejsce w przestrzeni adresowej twojego procesu, w pobliżu którego system powinien umieścić mapowanie. W praktyce wpisuje się tu najczęściej `0` (czyli `NULL`), co daje systemowi całkowitą swobodę w bezpiecznym dobraniu adresu.
+* **`len` (Długość):** Dokładna liczba bajtów, dla których chcesz ustanowić mapowanie. Jeśli wpiszesz tu zero, funkcja natychmiast zwróci błąd i mapowanie nie powstanie.
+* **`prot` (Ochrona/Uprawnienia):** Zestaw flag określających, na jakie operacje w tej pamięci pozwala twój kod. Używasz tu wartości takich jak `PROT_READ` (dozwolony odczyt danych), `PROT_WRITE` (dozwolony zapis), `PROT_EXEC` (wykonywanie kodu) lub `PROT_NONE` (całkowity brak dostępu), które możesz łączyć operatorem logicznym OR (`|`).
+* **`flags` (Flagi zachowania):** Decyduje o tym, co dzieje się z danymi po ich modyfikacji. Musisz wybrać jedną z dwóch głównych opcji:
+* `MAP_SHARED`: Wszelkie zmiany wprowadzone w pamięci wpłyną na bazowy obiekt (czyli fizycznie zaktualizują plik na dysku).
+* `MAP_PRIVATE`: Modyfikacje pozostają całkowicie prywatne dla twojego procesu i nie zmieniają oryginalnego pliku na dysku.
+* **`fildes` (Deskryptor pliku):** Liczba całkowita reprezentująca otwarty plik, z którym chcesz powiązać pamięć (uzyskana wcześniej z funkcji `open`).
+* **`off` (Przesunięcie/Offset):** Wskazuje, od którego bajtu w pliku źródłowym ma rozpocząć się mapowanie. Wartość ta najczęściej musi być wielokrotnością rozmiaru strony pamięci (zwykle 4096 bajtów), zwracanego przez systemową funkcję `sysconf()`. Jeśli chcesz zmapować plik od samego początku, wpisujesz tu `0`.
+
+**Wartość zwracana**
+
+* **W przypadku sukcesu:** Wskaźnik (adres) do miejsca w pamięci operacyjnej, pod którym zmapowano plik.
+* **W przypadku błędu:** Specjalną wartość `MAP_FAILED` oraz ustawia systemową zmienną `errno` wskazującą przyczynę awarii.
+
+**Przykład**
+
+`char *buff = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);`
+W ten sposób prosimy system operacyjny o "zmapowanie" pliku o deskryptorze `fd` do pamięci o rozmiarze `length` tak, żebyśmy mogli go zarówno czytać jak i modyfikować (`PROT_READ | PROT_WRITE`). Wynikiem jest wskaźnik na zmapowaną pamięć lub wartość `MAP_FAILED` gdy wystąpi błąd.   
+`mmap` pozwala nam bardzo wygodnie modyfikować pliki, tak samo jak zwykłe tablice. Dwie funkcje pomocnicze to `msync` i `munmap`.
+
+`msync` wymusza synchronizację zmian na dysk - system operacyjny nie robi tego zawsze od razu, ponieważ zapisy na dysk są wolne.   
+`munmap` to likwidacja mapowania, czyli sprzątanie.
+
+**UWAGA!!! Deskryptor musi mieć odpowiednie uprawnienia. Gdybyśmy do `mmap` podali `PROT_READ | PROT_WRITE` oraz deskryptor który otworzyliśmy np. z flagą `O_RDONLY` funkcja zwróciłaby błąd.**
+
+```C
+int fd = open("a.txt", O_RDWR);
+if (fd == -1)
+  ERR("open");
+
+struct stat sb;
+if (fstat(fd, &sb) == -1)
+  ERR("fstat");
+size_t length = sb.st_size;
+char *buff = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+if (buff == MAP_FAILED)
+  ERR("mmap");
+
+printf("a.txt[3] = %c (ASCII: %d)\n", buff[3], buff[3]); // To sie dzieje OD RAZU
+buff[3] = 'Z'; // Modyfikuje tekst w moim RAMie
+msync(buff, length, MS_SYNC); // Wymusza zapisanie modyfikacji na dysk. Flaga MS_SYNC oznacza, że program poczeka w tej linijce, aż dysk twardy potwierdzi udany zapis. Gdybyś użyła MS_ASYNC, system przyjąłby zlecenie, ale program od razu poszedłby dalej.
+
+munmap(buff, length); // Zrywa mapowanie, oddaje RAM i buf[0] grozi od teraz segmentation fault
+close(fd);
+```
