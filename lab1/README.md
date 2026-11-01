@@ -7,20 +7,34 @@
 Tablica wskaźników to zbiór adresów początkowych poszczególnych słów.   
 `char** argv` to wskaźnik pokazujący, gdzie w pamięci zaczyna się ta cała tablica z adresami.   
 `argv[i]` odwołuje się do i-tego parametru wywołania programu.   
-Argument zerowy `argv[0]` to zawsze nazwa programu.   
-Aby parametrem uczynić dwa lub więcej słów trzeba ująć je w apostrofy albo wpisać znak \ przed każdą spacją (lub innym tzw. białym znakiem).
+Argument zerowy `argv[0]` to zawsze **nazwa programu.**   
+Aby parametrem uczynić dwa lub więcej słów trzeba ująć je w apostrofy albo wpisać znak `\` przed każdą spacją (lub innym tzw. białym znakiem).
 
 ### man 3p fprintf
+
+```C
+#include <stdio.h>
+
+int dprintf(int fildes, const char *restrict format, ...);
+int fprintf(FILE *restrict stream, const char *restrict format, ...);
+int printf(const char *restrict format, ...);
+int snprintf(char *restrict s, size_t n, const char *restrict format, ...);
+int sprintf(char *restrict s, const char *restrict format, ...);
+```
 
 `printf`: Wypisuje sformatowany tekst na standardowe wyjście (strumień `stdout`), czyli domyślnie na ekran terminala.   
 `fprintf`: Wypisuje tekst do wskazanego strumienia, podanego jako argument `stream` (np. do pliku otwartego wcześniej za pomocą `fopen`).   
 `dprintf`: Działa analogicznie do `fprintf`, ale zamiast wskaźnika na strumień, przyjmuje tzw. deskryptor pliku (`fildes`), czyli niskopoziomowy identyfikator pliku w postaci liczby całkowitej.   
-`sprintf`: Zapisuje sformatowany tekst do bufora w pamięci (tablicy znaków `s`) i automatycznie dokleja na końcu znak terminacji `\0`. Użycie tej funkcji wymaga ostrożności, ponieważ to na programiście spoczywa obowiązek zagwarantowania, że w buforze jest wystarczająco dużo miejsca na cały tekst.   
-`snprintf`: To bezpieczniejsza wersja funkcji `sprintf`, która przyjmuje dodatkowy argument `n` określający maksymalny rozmiar bufora. Funkcja ta upewnia się, że nie zapisze więcej niż `n` bajtów (nadmiarowe znaki są odrzucane), a na końcu zawsze umieszcza znak `\0`. Jeśli `n` wynosi zero, funkcja nic nie zapisuje do bufora.
-
-`printf`, `fprintf` oraz `dprintf`: Zwracają całkowitą liczbę bajtów, która została pomyślnie wysłana do strumienia lub pliku.   
-`sprintf`: Zwraca liczbę bajtów zapisanych do bufora `s`, nie wliczając w to końcowego znaku `\0`.   
+`sprintf`: Zapisuje sformatowany **tekst do bufora w pamięci** (tablicy znaków `s`) i automatycznie **dokleja na końcu znak terminacji** `\0`. Użycie tej funkcji wymaga ostrożności, ponieważ to na programiście spoczywa **obowiązek zagwarantowania, że w buforze jest wystarczająco dużo miejsca** na cały tekst.   
+`snprintf`: To bezpieczniejsza wersja funkcji `sprintf`, która przyjmuje dodatkowy argument `n` określający **maksymalny rozmiar** bufora. Funkcja ta upewnia się, że nie zapisze więcej niż `n` bajtów (nadmiarowe znaki są odrzucane), a na końcu zawsze umieszcza znak `\0`. Jeśli `n` wynosi zero, funkcja nic nie zapisuje do bufora.
+`printf`, `fprintf` oraz `dprintf`: Zwracają **całkowitą liczbę bajtów, która została pomyślnie wysłana** do strumienia lub pliku.   
+`sprintf`: Zwraca **liczbę bajtów zapisanych do bufora** `s`, nie wliczając w to końcowego znaku `\0`.   
 `snprintf`: Zwraca liczbę bajtów, która zostałaby zapisana w buforze, gdyby limit `n` był wystarczająco duży (również z pominięciem znaku `\0`). Ta unikalna cecha pozwala programiście łatwo sprawdzić, czy jego bufor okazał się za mały, by pomieścić całą wygenerowaną treść.
+
+**Bezpiecznik (n):** Przyjmuje argument n określający maksymalny rozmiar bufora. Gwarantuje, że nigdy nie zapisze poza jego granice (chroni przed wyciekiem pamięci).   
+**Znak końca:** Zawsze wstawia `\0` na ostatnim dostępnym miejscu, nawet kosztem ucięcia tekstu.
+**Zwracana wartość:** Zwraca liczbę bajtów, która zostałaby zapisana, gdyby bufor był nieskończenie duży (bez wliczania `\0`).
+**Wykrywanie obcięcia:** Jeśli zwrócona wartość jest większa lub równa n (wynik >= n), oznacza to twardy dowód, że bufor był za mały i tekst w pamięci został ucięty. (Przykład: dla n=5 i słowa "Politechnika", funkcja zapisze "Poli\0", ale zwróci 12).
 
 Wpisanie danych `fprintf`, `fputc`, `fputs`, `fwrite` lub wczytanie ich `fscanf`, `fgetc`, `fgets`, `fread`.
 
@@ -36,6 +50,8 @@ Wpisanie danych `fprintf`, `fputc`, `fputs`, `fwrite` lub wczytanie ich `fscanf`
 dirfd(DIR *dirp)
 ```
 
+**dirfd** - extract the file descriptor used by a DIR stream
+
 ### man 3p fileno
 
 ```C
@@ -50,6 +66,8 @@ DIR *opendir(const char *dirname);
 DIR *fdopendir(int fd);
 ```
 
+The  **fileno** function shall return the integer file descriptor associated with the stream pointed to by stream.
+
 ### man 3p closedir - TRZEBA O NIM PAMIĘTAĆ!!!
 
 ```C
@@ -63,9 +81,9 @@ struct dirent *readdir(DIR *dirp);
 int readdir_r(DIR *restrict dirp, struct dirent *restrict entry, struct dirent **restrict result);
 ```
 
-W celu przejrzenia całego katalogu, funkcję `readdir` należy wywoływać tyle razy, aż nie zwróci `NULL`. **W przypadku wystąpienia błędu, zarówno opendir, jak i readdir** zwracają `NULL`. Wynika z tego ważny wniosek w przypadku funkcji `readdir`: przed jej wywołaniem należy wyzerować zmienną `errno`, a w razie zwrócenia `NULL` sprawdzić, czy ta zmienna nie została ustawiona na niezerową wartość (oznaczającą błąd). errno jest zmienną globalną używaną przez funkcje systemowe do wskazania kodu napotkanego błędu.
+Trzeba do tego po prostu zadeklarować wskaźnik `struct dirent *my_dir;`.
 
-Funkcje `stat`, `lstat` i `closedir` zwracają 0 w razie sukcesu, inna wartość oznacza błąd.
+W celu przejrzenia całego katalogu, funkcję `readdir` należy wywoływać tyle razy, aż nie zwróci `NULL`. **W przypadku wystąpienia błędu, zarówno opendir, jak i readdir** zwracają `NULL`. Wynika z tego ważny wniosek w przypadku funkcji `readdir`: przed jej wywołaniem należy wyzerować zmienną `errno`, a w razie zwrócenia `NULL` sprawdzić, czy ta zmienna nie została ustawiona na niezerową wartość (oznaczającą błąd). errno jest zmienną globalną używaną przez funkcje systemowe do wskazania kodu napotkanego błędu.
 
 ```C
 DIR *katalog = opendir(".");
@@ -103,7 +121,11 @@ int lstat(const char *restrict path, struct stat *restrict buf);
 int fstat(int fildes, struct stat *buf);
 ```
 
+**Zwracana wartość**
+
 Jeśli `stat` lub `lstat` zawiedzie, zwraca -1 (0 w razie sukcesu). W języku C **jakakolwiek liczba różna od zera jest uznawana za prawdę**, więc warunek if(-1) się spełni i program wyrzuci błąd.
+
+**Makra i pola struktury stat**
 
 Struktura stat zawiera m.in. informacje o rozmiarze pliku, właścicielu, czy dacie ostatniej modyfikacji. Dostępne są też makra sprawdzające typ pliku. Poniżej znajdują się ważniejsze przykłady takich makr:
 
@@ -112,9 +134,25 @@ Makra przyjmujące `buf->st_mode` (pole typu `mode_t`):
 `S_ISDIR(m)` – czy mamy do czynienia z katalogiem,
 `S_ISLNK(m)` – czy mamy do czynienia z linkiem.
 
-Jedyną różnicą w działaniu funkcji `stat` i `lstat` jest obsługa linków. stat zwróci informacje o pliku, do którego dany link prowadzi, natomiast lstat zwróci informacje o samym linku.
+Zgodnie z dostarczoną dokumentacją funkcji `fstat`, struktura `stat` zawiera następujące pola:
 
-`fstatat(dirfd(dirp), dp->d_name, &filestat, AT_SYMLINK_NOFOLLOW)`, gdy chcemy otworzyć plik nie w folderze roboczym
+* **`st_mode`**: Zawiera bity określające uprawnienia do pliku (takie jak `S_IRUSR`, `S_IWUSR`, `S_IRGRP`, `S_IWGRP`, `S_IROTH`, `S_IWOTH`).
+* **`st_nlink`**: Zostaje ustawione na dokładną liczbę dowiązań (linków) prowadzących do pliku.
+* **`st_size`**: Reprezentuje rozmiar pliku w bajtach.
+* **`st_atim`, `st_ctim`, `st_mtim**`: Są to pola związane z czasem, które system operacyjny aktualizuje tuż przed zapisaniem informacji do struktury.
+* **`st_uid`, `st_gid`, `st_ino`, `st_dev**`: Przyjmują znaczące wartości dla standardowych typów plików. Dodatkowo dokumentacja wskazuje, że pole przechowujące numer seryjny pliku (powiązane z `st_ino`) może wywołać błąd `EOVERFLOW`, jeśli jego wartość jest zbyt duża, aby zmieścić się w strukturze.
+
+**Róźnica między `stat` a `lstat`**
+
+Jedyną różnicą w działaniu funkcji `stat` i `lstat` jest obsługa linków. **`stat` zwróci informacje o pliku, do którego dany link prowadzi, natomiast `lstat` zwróci informacje o samym linku.**
+
+**Pobieranie danych pliku, który nie znajduje się w folderze roboczym**
+
+`fstatat(dirfd(dirp), dp->d_name, &filestat, AT_SYMLINK_NOFOLLOW)`, gdy chcemy otworzyć plik **nie** w folderze roboczym.
+
+**Tworzenie struktury stat**
+
+Tutaj trzeba utworzyć `struct stat buffer;` i w `fstat` wpisać jego adres `&buffer`. Do pól odwołujemy się `buffer.st_size` (z kropką).
 
 ```C
 struct stat buffer;
@@ -129,7 +167,7 @@ struct stat *buffer;
 fstat(fildes, buffer);	// Tu nie trzeba &, bo buffer to już wskaźnik
 ```
 
-Ten kod się skompiluje, ale program natychmiast ulegnie awarii (tzw. Segmentation Fault). Dlaczego?   
+**Ten kod się skompiluje, ale program natychmiast ulegnie awarii** (tzw. Segmentation Fault). Dlaczego?   
 Ponieważ instrukcja `struct stat *buffer;` tworzy tylko wskaźnik (wizytówkę z adresem), ale nie tworzy samego pudełka na dane. Taki wskaźnik pokazuje w bliżej nieokreślone, losowe miejsce w pamięci (tzw. dziki wskaźnik). Kiedy fstat spróbuje wpisać tam dane, zepsuje pamięć programu i system operacyjny go brutalnie zabije.   
 Aby to drugie podejście zadziałało, musiałbyś ręcznie zbudować "pudełko" za pomocą dynamicznej alokacji pamięci:
 
@@ -174,9 +212,9 @@ int chdir(const char *path);
 FILE *fopen(const char *restrict pathname, const char *restrict mode);
 ```
 
-1. `r` (read): Otwiera plik wyłącznie do odczytu. Jeśli plik nie istnieje lub nie masz uprawnień do jego odczytania, operacja zakończy się błędem.
+1. `r` (read): Otwiera plik wyłącznie do odczytu. Jeśli plik nie istnieje lub nie masz uprawnień do jego odczytania, operacja zakończy się błędem `ENOENT` (Error NO ENTry) – gdy plik nie istnieje lub podana ścieżka jest błędna lub `EACCES` (Error ACCESs) – gdy plik istnieje, ale Twój program nie ma uprawnień do jego odczytania.
 2. `w` (write): Otwiera plik do zapisu. Jeśli plik już istnieje, zostaje bezpowrotnie wyczyszczony (jego długość jest "ucinana" do zera). Jeśli plik nie istnieje, system automatycznie go utworzy.
-3. `a` (append): Otwiera plik do dopisywania. Jeśli plik nie istnieje, zostanie utworzony. Różnica polega na tym, że niezależnie od tego, co będziesz robić, wszystkie nowe dane będą na siłę dopisywane na samym końcu pliku.
+3. `a` (append): Otwiera plik do dopisywania. Jeśli plik nie istnieje, zostanie utworzony. Różnica polega na tym, że niezależnie od tego, co będziesz robić, wszystkie nowe dane będą na siłę dopisywane na samym końcu pliku, NAWET GDY UŻYJĘ LSEEK I PRZESUNĘ OFFSET, TO PISAĆ BĘDĘ MOGŁA JEDYNIE NA KOŃCU PLIKU (przy `a+` mogę czytać z dowolnego miejsca, ale pisać wciąż nie).
 
 Modyfikator `+` (update - odczyt i zapis jednocześnie):   
 Znak `+` dodany do trybu oznacza, że plik jest otwierany do "aktualizacji", czyli pozwala zarówno na czytanie, jak i na pisanie.   
@@ -192,12 +230,12 @@ int fseeko(FILE *stream, off_t offset, int whence);
 
 Funkcja `fseek` przyjmuje wskaźnik `FILE` i pozwala nam przesunąć się na odpowiednie miejsce w pliku. Wyjątkiem jest plik otwarty w trybie “a” - append, który **niezmiennie wskazuje na koniec treści niezależnie od wywołań** `fseek`. Poza tym przypadkiem, tuż po otwarciu, kursor pliku wskazuje na pierwszy bajt.
 
-`stream` jest wyżej wymienionym identyfikatorem strumienia pliku   
-`offset` określa liczbę bajtów o którą chcemy się przesunąć   
-`whence` mówi o tym jaki punkt odniesienia powinniśmy przyjąć w momencie przesunięcia. Może przyjmować następujące wartości:
+* `stream` jest wyżej wymienionym identyfikatorem strumienia pliku.
+* `offset` określa liczbę bajtów o którą chcemy się przesunąć.
+* `whence` mówi o tym jaki punkt odniesienia powinniśmy przyjąć w momencie przesunięcia. Może przyjmować następujące wartości:
 1. `SEEK_SET` - punktem odniesienia jest początek pliku, funkcja ustawia kursor pliku na offset-ym bajcie pliku.
 2. `SEEK_CUR` - przesunięcie relatywne do obecnego kursora pliku, funkcja ustawia kursor o offset bajtów do przodu (do tyłu w przypadku wartości ujemnej).
-3. `SEEK_END` - punktem odniesienia jest koniec pliku. Kursor pliku będzie wskazywał na dane tylko jeśli wartość `offset` jest ujemna.
+3. `SEEK_END` - punktem odniesienia jest koniec pliku. Kursor pliku będzie wskazywał na dane tylko jeśli wartość `offset` **jest ujemna.**
 Dla wartości `offset` **równej 0 kursor pliku ustawiony jest na bajt po ostatnim bajcie pliku**. Odczytanie pozycji kursora funkcją `ftell` podaje wtedy dokładny rozmiar pliku w bajtach. Operacja ta pozwala programiście **zaalokować dokładną ilość bajtów która będzie potrzebna na wczytanie** całego pliku.
 
 **W programie nie wypełniamy pliku zerami, dzieje się to automatycznie ponieważ gdy zapisujemy coś poza aktualnym końcem pliku system automatycznie dopełnia lukę** zerami. Co więcej, jeśli tych zer ciągiem jest sporo to nie zajmują one sektorów dysku!
