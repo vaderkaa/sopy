@@ -258,12 +258,13 @@ size_t fread(void *restrict ptr, size_t size, size_t nitems, FILE *restrict stre
 ```
 
 `ptr` - bufor w który będą zapisywane dane   
-`size` - rozmiar nieprzerwanych elementów do wczytania   
+`size` - rozmiar nieprzerwanych elementów do wczytania, rozmiar (w bajtach) pojedynczego, niepodzielnego obiektu, który chcesz wczytać. Jeśli na przykład czytasz z pliku tablicę struktur lub liczb typu int, to size będzie wynosić 4 (czyli sizeof(int)), natomiast nitems to liczba tych konkretnych liczb czy struktur, które chcesz wyciągnąć.   
 `nitems` - liczba elementów do wczytania   
 `stream` - wskaźnik pozyskany z fopen   
-Zwrócona wartość oznacza liczbę elementów wczytanych z sukcesem. Będzie ona **mniejsza niż `nitems` w przypadku błędu lub zakończenia pliku**. Można pomyśleć, że podział wczytanych danych na elementy jest niepotrzebną komplikacją, ale daje to pewną korzyść w przypadku gdy wczytywany plik składa się z pewnych rekordów których nie chcemy przerywać w połowie (np. 4-bajtowe zmienne całkowitoliczbowe `int`). W przypadku niepełnego odczytu nie musimy obliczać ile obiektów wczytaliśmy poprawnie ani cofać kursora pliku aby wczytać niepełny rekord jeszcze raz. W momencie gdy pierwsze wywołanie zwróciło `n` wystarczy wywołać funkcję jeszcze raz z przesuniętym buforem `ptr+size*n` oraz liczbą elementów `nitems-n`.
+**Zwrócona wartość oznacza liczbę elementów wczytanych** z sukcesem. Będzie ona **mniejsza niż `nitems` w przypadku błędu lub zakończenia pliku**. Można pomyśleć, że podział wczytanych danych na elementy jest niepotrzebną komplikacją, ale daje to pewną korzyść w przypadku gdy wczytywany plik składa się z pewnych rekordów których nie chcemy przerywać w połowie (np. 4-bajtowe zmienne całkowitoliczbowe `int`). W przypadku niepełnego odczytu nie musimy obliczać ile obiektów wczytaliśmy poprawnie ani cofać kursora pliku aby wczytać niepełny rekord jeszcze raz. W momencie gdy pierwsze wywołanie zwróciło `n` wystarczy wywołać funkcję jeszcze raz z przesuniętym buforem `ptr+size*n` oraz liczbą elementów `nitems-n`.   
+Skoro za pierwszym razem funkcja wczytała n=9 elementów, to przy kolejnym wywołaniu po prostu przesuwasz kursor zapisu w swoim buforze o te 9 miejsc `(ptr + size * 9)` i prosisz o dowiezienie brakującej reszty, czyli `nitems - 9` elementów.
 
-### man 3p fclose
+### man 3p fclose - TRZEBA O TYM PAMIĘTAĆ!!!
 
 ```C
 int fclose(FILE *stream);
@@ -279,28 +280,38 @@ int unlink(const char *path);
 int unlinkat(int fd, const char *path, int flag);
 ```
 
-Jak działa `unlink`:   
-Zmniejszenie licznika dowiązań: Głównym zadaniem funkcji `unlink` jest usunięcie wpisu (dowiązania) o danej ścieżce z jej katalogu macierzystego oraz zmniejszenie tak zwanego licznika dowiązań (link count) dla tego pliku.   
-Aby system operacyjny faktycznie zwolnił (wyczyścił) przestrzeń na dysku zajmowaną przez plik, muszą zostać spełnione jednocześnie dwa warunki:
+**Jak działa `unlink`?**
+
+Zmniejszenie licznika dowiązań: Głównym zadaniem funkcji `unlink` jest usunięcie wpisu (dowiązania) o danej ścieżce z jej katalogu macierzystego oraz zmniejszenie tak zwanego licznika dowiązań (link count) dla tego pliku.
+
+Aby **system operacyjny faktycznie zwolnił (wyczyścił) przestrzeń na dysku zajmowaną przez plik,** muszą zostać spełnione jednocześnie dwa warunki:
 1. Licznik dowiązań musi spaść do zera (czyli żadna inna ścieżka w systemie nie wskazuje już na ten plik).
 2. Żaden działający proces w komputerze nie ma w tej chwili otwartego tego pliku (np. funkcja `fopen` nie trzyma go w trybie odczytu).
 
-Usuwanie plików w użyciu (Opóźnione usunięcie):   
+**Usuwanie plików w użyciu (Opóźnione usunięcie)**
+
 To jest najważniejsza cecha systemów UNIX. Jeśli wywołasz unlink na pliku, który jest w tej samej chwili otwarty i używany przez jakiś proces, funkcja `unlink` zakończy się sukcesem od razu i usunie ścieżkę z katalogu (plik zniknie z widoku komendy ls). Jednak fizyczne usunięcie zawartości tego pliku z dysku zostanie odroczone aż do momentu, gdy ostatni proces wywoła funkcję `close()` na tym pliku i go zamknie.
 
-Symlinki (Dowiązania symboliczne):   
-Jeśli ścieżka podana do `unlink` jest tylko symbolicznym skrótem (symlinkiem), usunięty zostaje wyłącznie ten skrót. Zasadniczy plik lub katalog docelowy pozostaje całkowicie nienaruszony.
+**Symlinki (Dowiązania symboliczne)**
 
-Usuwanie katalogów:   
-Parametr przekazany do funkcji nie może być ścieżką do katalogu (folderu). Usunięcie katalogu za pomocą unlink jest zarezerwowane wyłącznie dla procesów z uprawnieniami superużytkownika (roota). Aplikacje powinny używać do tego celu funkcji `rmdir()`.
+Jeśli ścieżka podana do `unlink` jest **tylko symbolicznym skrótem (symlinkiem), usunięty zostaje wyłącznie ten skrót.** Zasadniczy plik lub katalog docelowy pozostaje całkowicie nienaruszony.
 
-Jak działa unlinkat:   
-Druga funkcja w dokumentacji to rozszerzona, bezpieczniejsza wersja unlink z końcówką at (jak at directory).   
+**Usuwanie katalogów**
+
+Parametr przekazany do funkcji nie może być ścieżką do katalogu (folderu). **Usunięcie katalogu za pomocą unlink jest zarezerwowane wyłącznie dla procesów z uprawnieniami superużytkownika (roota). Aplikacje powinny używać do tego celu funkcji `rmdir()`.**
+
+**Jak działa unlinkat?**
+
+Druga funkcja w dokumentacji to rozszerzona, bezpieczniejsza wersja `unlink` z końcówką at (jak at directory).   
 Bezpieczna nawigacja (Omijanie Race Conditions):   
-`unlinkat` stworzono, by zapobiegać błędom synchronizacji (race conditions). Jeżeli podasz jej ścieżkę względną, usunięcie pliku odbędzie się w oparciu o wcześniej otwarty deskryptor pliku (deskryptor folderu), do którego przypisana jest zmienna fd, a nie względem bieżącego, globalnego katalogu roboczego programu. Gwarantuje to, że plik zostanie usunięty z prawidłowego miejsca, nawet jeśli jakiś inny program w tle zmieni układ folderów.
+`unlinkat` stworzono, by zapobiegać błędom synchronizacji (race conditions). **Jeżeli podasz jej ścieżkę względną, usunięcie pliku odbędzie się w oparciu o wcześniej otwarty deskryptor pliku (deskryptor folderu),** do którego przypisana jest zmienna fd, a nie względem bieżącego, globalnego katalogu roboczego programu. Gwarantuje to, że plik zostanie usunięty z prawidłowego miejsca, nawet jeśli jakiś inny program w tle zmieni układ folderów.
 
-Usuwanie katalogów (Flaga `AT_REMOVEDIR`):   
-W przeciwieństwie do zwykłego `unlink`, `unlinkat` potrafi legalnie i bezpiecznie usunąć również katalog, zachowując się jak funkcja `rmdir()`. Wystarczy jako trzeci parametr (flag) przekazać jej specjalną flagę systemową `AT_REMOVEDIR`.   
+**Usuwanie katalogów (Flaga `AT_REMOVEDIR`)**
+
+W przeciwieństwie do zwykłego `unlink`, **`unlinkat` potrafi legalnie i bezpiecznie usunąć również katalog,** zachowując się jak funkcja `rmdir()`. Wystarczy jako trzeci parametr (flag) przekazać jej specjalną flagę systemową `AT_REMOVEDIR`.
+
+**Zwracana wartość**
+
 Zarówno `unlink`, jak i `unlinkat` zwracają wartość 0 w przypadku poprawnego usunięcia dowiązania lub -1 w razie błędu, odpowiednio ustawiając zmienną errno (np. na EACCES dla braku uprawnień). 
 
 ### man 3p umask
@@ -310,13 +321,13 @@ Zarówno `unlink`, jak i `unlinkat` zwracają wartość 0 w przypadku poprawnego
 mode_t umask(mode_t cmask);
 ```
 
-Zasada działania: `umask` to systemowa "czarna lista". Określa, jakie uprawnienia należy zabrać (zablokować) przy tworzeniu pliku, a nie jakie mu dać.   
+**Zasada działania:** `umask` to systemowa "czarna lista". Określa, **jakie uprawnienia należy zabrać (zablokować) przy tworzeniu pliku,** a nie jakie mu dać.   
 Wzór `umask(~perms & 0777)`:   
 `perms` – uprawnienia, które fizycznie chcesz uzyskać na dysku (np. `0777`).   
 `~` (negacja) – tłumaczy Twoje chęci na język blokad. Jeśli chcesz dać uprawnienia na wszystko, odwraca bity tak, aby kazać systemowi "zablokować nic" (`0000`).   
 `& 0777` (sekator) – ucina niewidoczne zera i jedynki z 32-bitowej zmiennej pamięci, gwarantując, że do systemu trafi czyste i zrozumiałe 9 bitów uprawnień.
 
-Zapisywanie i przywracanie:   
+**Zapisywanie i przywracanie:**    
 Funkcja `umask()` zawsze zwraca starą listę blokad w momencie jej zmiany.   
 `mode_t stara = umask(0000);` wyłącza filtry i chowa starą "tarczę" (np. `0022`) do zmiennej.
 `umask(stara);` nie wykonuje żadnego odejmowania. Po prostu nadpisuje obecne ustawienia, przywracając starą "czarną listę" zakazów, żeby inne pliki tworzone w programie miały domyślną ochronę.
@@ -333,35 +344,38 @@ extern int opterr, optind, optopt;
 `optstring`: To tekst (np. `":abf:o:"`), w którym definiujesz, jakich flag oczekujesz. Jeśli po literze znajduje się dwukropek (`:`), oznacza to, że opcja wymaga podania wartości (argumentu). Jeśli dwukropek jest na samym początku całego ciągu, wycisza to domyślne systemowe komunikaty o błędach, pozwalając programiście obsłużyć je samodzielnie.   
 `optarg`: Zewnętrzna zmienna tekstowa (wskaźnik). Jeśli opcja wymaga wartości (np. `-f nazwa.txt`), po jej znalezieniu getopt automatycznie ustawi wskaźnik `optarg` tak, by celował prosto w ten argument.   
 `optind`: Licznik oznaczający indeks następnego elementu w tablicy `argv`, który czeka na przetworzenie. System inicjalizuje go wartością 1 i samodzielnie zwiększa w miarę działania funkcji.   
-`optopt`: Jeśli użytkownik poda nierozpoznaną flagę lub zapomni wpisać dla niej wartości, getopt zapisuje ten błędny znak właśnie w zmiennej `optopt`, aby można go było wypisać w komunikacie błędu.   
-Zwracana wartość: Gdy funkcja **pomyślnie przeanalizuje wszystkie dostępne opcje zaczynające się od myślnika**, zwraca ostatecznie wartość `-1`.
+`optopt`: Jeśli użytkownik poda nierozpoznaną flagę lub zapomni wpisać dla niej wartości, getopt zapisuje ten błędny znak właśnie w zmiennej `optopt`, aby można go było wypisać w komunikacie błędu.
 
-Znak znalezionej opcji (np. 'a', 'b', 'f'): Gdy funkcja znajdzie prawidłową, rozpoznaną flagę (zdefiniowaną w optstring), zwraca po prostu jej znak (kod ASCII tej litery). Jeśli flaga wymagała wartości, dodatkowo ustawia wskaźnik optarg.
+**Zwracana wartość:**
 
-Znak zapytania '?': Zwraca go w przypadku błędu – gdy użytkownik poda flagę, której nie ma w Twoim optstring (nierozpoznana opcja), lub gdy flaga wymagała argumentu, ale użytkownik zapomniał go wpisać. Rzeczywisty, błędnie wpisany znak ląduje wtedy w zmiennej optopt.
+Znak znalezionej opcji (np. `'a'`, `'b'`, `'f'`): Gdy funkcja znajdzie prawidłową, rozpoznaną flagę (zdefiniowaną w optstring), zwraca po prostu jej znak (kod ASCII tej litery). Jeśli flaga wymagała wartości, dodatkowo ustawia wskaźnik `optarg`.
 
-Dwukropek ':': Zwraca go zamiast '?' w przypadku braku wymaganego argumentu, ale tylko wtedy, gdy Twój optstring zaczyna się od dwukropka (np. ":abf:o:").
+Znak zapytania `'?'`: Zwraca go w przypadku błędu – gdy użytkownik poda flagę, której nie ma w Twoim `optstring` (nierozpoznana opcja), lub gdy flaga wymagała argumentu, ale użytkownik zapomniał go wpisać. Rzeczywisty, błędnie wpisany znak ląduje wtedy w zmiennej `optopt`.
 
-Wartość -1: Gdy funkcja przeanalizuje już wszystkie dostępne opcje zaczynające się od myślnika i skończy pracę, zwraca -1. To ostateczny sygnał dla programu, że należy przerwać pętlę sprawdzającą.
+Dwukropek `':'`: Zwraca go zamiast `'?'` w przypadku **braku wymaganego argumentu,** ale tylko wtedy, gdy Twój optstring zaczyna się od dwukropka (np. ":abf:o:").
+
+Wartość `-1`: Gdy funkcja **przeanalizuje już wszystkie dostępne opcje zaczynające się od myślnika i skończy pracę, zwraca `-1`.** To ostateczny sygnał dla programu, że należy przerwać pętlę sprawdzającą.
 
 ### man 3p mkdir
 
 ```C
 #include <sys/stat.h>
 int mkdir(const char *path, mode_t mode);
+
 #include <fcntl.h>
 int mkdirat(int fd, const char *path, mode_t mode);
 ```
 
-Należy pamiętać, że w przypadku katalogów niezbędne są uprawnienia do wykonania (`x`), które w tym wypadku oznaczają możliwość przejście przez katalog i dostęp do plików i katalogów wewnątrz niego.
+Należy pamiętać, że **w przypadku katalogów niezbędne są uprawnienia do wykonania** (`x`), które w tym wypadku oznaczają możliwość przejście przez katalog i dostęp do plików i katalogów wewnątrz niego.
 
 ### man 3p chmod
 
 ```C
 #include <sys/stat.h>
 int chmod(const char *path, mode_t mode);
+
 #include <fcntl.h>
-int fchmodat(int fd, const char *path, mode_t mode, int flag);
+int fchmodat(int fd, const char *path, mode_t mode, int flag); // Flaga to np. ATSYMLINKNOFOLLOW
 ```
 
 Przy użyciu wspomnianych wcześniej funkcji `stat` i `lstat` możemy sprawdzać uprawnienia pliku.
@@ -380,7 +394,7 @@ int access(const char *path, int amode);
 int faccessat(int fd, const char *path, int amode, int flag);
 ```
 
-Należy pamiętać, że żeby zmienić uprawnienia nasz proces musi mieć uprawnienia do zapisu danego pliku. Wygodnym sposobem, żeby sprawdzić, czy plik istnieje i mamy odpowiednie uprawnienia jest funkcja `access`.
+Należy pamiętać, że **żeby zmienić uprawnienia nasz proces musi mieć uprawnienia do zapisu danego pliku.** Wygodnym sposobem, żeby sprawdzić, czy **plik istnieje i mamy odpowiednie uprawnienia** jest funkcja `access`.
 
 Należy uważać, bo parametr amode nie jest tym samym co `mode` w `chmod` i `mkdir`. Przyjmuje jedną z czterech flag lub ich kombinację (przez `|`) w zależności od tego, co chcemy sprawdzić: `F_OK` (istnienie), `R_OK` (odczyt), `W_OK` (zapis), `X_OK` (wykonanie).
 
@@ -404,8 +418,10 @@ ssize_t readlink(const char *restrict path, char *restrict buf, size_t bufsize);
 ssize_t readlinkat(int fd, const char *restrict path, char *restrict buf, size_t bufsize);
 ```
 
-Używamy `readlink` do sprawdzenia, na jaki plik wskazuje dany symlink.
-Istotne w użyciu tej funkcji jest fakt, że sami musimy zaalokować bufor `buf`, w którym umieści wynik.
+Używamy `readlink` do sprawdzenia, **na jaki plik wskazuje dany symlink.**
+Istotne w użyciu tej funkcji jest fakt, że **sami musimy zaalokować bufor `buf`, w którym umieści wynik.**
+
+**Zwracana wartość:** W przypadku sukcesu, funkcja zwraca liczbę zapisanych do bufora bajtóœ, w przypadku porażki zwraca -1 i ustawia `errno`.
 
 ```C
 char buf[1024]; // Na stercie size_t buf_size = 1024; char *buf = malloc(buf_size); free(buf);
@@ -415,9 +431,12 @@ if ((len = readlink("/modules/pass1", buf, sizeof(buf)-1)) != -1)
 	buf[len] = '\0';
 ```
 
-Dowiązania symboliczne są tak naprawdę specjalnym rodzajem pliku, zawierającym ścieżkę do innego pliku. Jeżeli plik na który wskazuje dowiązanie symboliczne zmieni nazwę takie dowiązanie przestanie być poprawne - plik na który wskazuje przestaje istnieć.
+**Na stosie (`char buf[1024]`):** Pamięć zwalnia się sama. Instrukcja sizeof(buf) działa poprawnie (zwróci 1024).
 
-Mamy dwie funkcje `stat` i `lstat` - `lstat` zwróci informację o symlinku jako o pliku, natomiast `stat` o pliku na który wskazuje.
+**Na stercie (`malloc`):** Wymaga użycia free(). Instrukcja sizeof(buf) nie działa (zwróci rozmiar wskaźnika) – musisz operować na własnej zmiennej np. buf_size.
+
+**Kluczowy haczyk (brak `\0`):** Funkcja readlink wrzuca tylko surowe bajty i nie dokleja znaku końca stringa.
+Dlatego zawsze podajesz rozmiar bufora pomniejszony o jeden (- 1), aby wymusić wolne miejsce na końcu, a po udanym odczycie ręcznie zamykasz tekst: buf[len] = '\0';.
 
 ### man 3p symlink
 
@@ -428,23 +447,27 @@ int symlink(const char *path1, const char *path2);
 int symlinkat(const char *path1, int fd, const char *path2);
 ```
 
+**Dowiązania symboliczne są tak naprawdę specjalnym rodzajem pliku, zawierającym ścieżkę do innego pliku. Jeżeli plik na który wskazuje dowiązanie symboliczne zmieni nazwę takie dowiązanie przestanie być poprawne - plik na który wskazuje przestaje istnieć.**
+
+Mamy dwie funkcje `stat` i `lstat` - `lstat` zwróci informację o symlinku jako o pliku, natomiast `stat` o pliku na który wskazuje.
+
 Jej wywołanie tworzy dowiązanie symboliczne o ścieżce path2 do pliku o nazwie path1 (czyli `path2->path1`, `->` oznacz ,,wskazuje na’’). W terminalu mamy bezpośredni odpowiednik tej funkcji `ln -s <TARGET> <PATH>` (**man 1 ln**).   
 
 Rozważ następujący przypadek:   
 W naszym katalogu roboczym mamy dwa podkatalogi `a` oraz `b`. W katalogu `a` tworzymy plik `file.txt`. Chcemy teraz stworzyć dowiązanie symboliczne do tego pliku w katalogu `b` o nazwie np. `file.txt_bak` Wywołujemy więc `ln -s a/file.txt b/file.txt_bak`. Czy to zadziała poprawnie?   
 Nie, nie zadziała! Zostanie stworzone dowiązanie `b/file.txt_bak` jednak będzie ono wskazywać na względną ścieżkę `a/file.txt`, która z punktu widzenia pliku `b/file.txt_bak` jest niepoprawna, bo dla niego ścieżka do tego pliku to `../a/file.txt`.
-Żeby poprawnie stworzyć dowiązanie z naszego katalogu roboczego musimy wywołać `ln -s ../a/file.txt b/file.txt_bak` - wygląda nieintuicyjnie na pierwszy rzut oka, ale po prostu trzeba pamiętać, że ścieżka docelowa jest zawsze z punktu widzenia dowiązania. Alternatywnie możemy wejść do katalogu b i stamtąd wywołać `ln -s ../a/file.txt file.txt_bak`. Aby wygodnie podejrzeć na jaki plik wskazuje dowiązania w danym katalogu najlepiej użyć `ls -l`.
+Żeby poprawnie stworzyć dowiązanie z naszego katalogu roboczego musimy wywołać `ln -s ../a/file.txt b/file.txt_bak` - wygląda nieintuicyjnie na pierwszy rzut oka, ale po prostu trzeba pamiętać, że **ścieżka docelowa jest zawsze z punktu widzenia dowiązania.** Alternatywnie możemy **wejść do katalogu b** i stamtąd wywołać `ln -s ../a/file.txt file.txt_bak`. **Aby wygodnie podejrzeć na jaki plik wskazuje dowiązania w danym katalogu najlepiej użyć `ls -l`.**
 
 Zawsze możesz stworzyć dowiązanie oparte na ścieżce bezwzględnej (od samego początku dysku, np. `ln -s /home/student/a/file.txt b/file.txt_bak`, ale na labach raczej nie, bo trzeba to przesyłać, więc chodzi o relację miedzy folderami.
 
-### buforowanie
+### Buforowanie
 
-1. Zwykły printf (Standardowe wyjście - stdout)   
+1. Zwykły `printf` (Standardowe wyjście - stdout)   
 Ma bufor (poczekalnię). Nie wypisuje od razu!   
 W terminalu: Wyrzuca tekst na ekran dopiero, gdy zobaczy znak nowej linii (`\n`). Bez `\n` ekran jest pusty, aż program dobiegnie końca.   
 Zapis do pliku: Czeka, aż zbierze "dużą paczkę" danych. Jeśli przerwiesz program (`Ctrl+C`) w trakcie działania, pusty bufor = utrata danych!
 
-2. Debugowanie i błędy (fprintf(stderr, ...))   
+2. Debugowanie i błędy (`fprintf(stderr, ...)`)   
 Brak bufora. Wyrzuca tekst natychmiast!   
 Do czego: Używaj do debugowania (np. sprawdzania czy program wszedł w pętlę) oraz wypisywania błędów. Jeśli program nagle zginie, masz pewność, że to wywołanie zdążyło wyświetlić się na ekranie.   
 Składnia: `fprintf(stderr, "Moja zmienna to: %d\n", i);`
