@@ -85,6 +85,10 @@ ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset); // Pozycja sta
 ssize_t read(int fildes, void *buf, size_t nbyte);
 ```
 
+`filedes` - deskryptor pliku, pozyskany z open,   
+`buf` - wskaźnik na bufor w którym zapisane będą dane,   
+`nbyte` - rozmiar danych których ma oczekiwać funkcja.   
+
 **1. Zwracane wartości i zachowanie wskaźnika:**
 
 * **Zwraca to, co faktycznie przeczytał:** Funkcja zwraca liczbę rzeczywiście odczytanych bajtów, co może być mniejszą wartością, niż ta, o którą prosiłaś (np. jeśli plik się kończy przed wczytaniem całego bufora).
@@ -111,10 +115,11 @@ ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset);
 ssize_t read(int fildes, void *buf, size_t nbyte);
 ```
 
-* `filedes` - deskryptor pliku, pozyskany z open.
-* `buf` - wskaźnik na bufor z którego pobierane będą dane.
-* `nbyte` - rozmiar danych przeznaczonych do wysłania.
-* zwracana wartość: ilość zapisanych bajtów.
+`filedes` - deskryptor pliku, pozyskany z open,   
+`buf` - wskaźnik na bufor z którego pobierane będą dane,   
+`nbyte` - rozmiar danych przeznaczonych do wysłania.
+
+**Zwracana wartość:** ilość zapisanych bajtów.
 
 ### man 3p lseek
 
@@ -125,3 +130,287 @@ off_t lseek(int fildes, off_t offset, int whence);
 ```
 
 Jako parametr whence możemy podać `SEEK_SET` (ustawienie kursora na daną pozycję), `SEEK_CUR` (przesunięcie kursora względem aktualnej pozycji) albo `SEEK_END` (przesunięcie kursora za koniec pliku). Jako, że lseek zwraca pozycję kursora po wykonaniu operacji, wywołanie go z parametrami `0` i `SEEK_CUR` pozwala uzyskać aktualną pozycję w pliku.
+
+### man 3p writev
+
+```C
+#include <sys/uio.h>
+
+ssize_t writev(int fildes, const struct iovec *iov, int iovcnt);
+```
+
+Funkcja `writev` oferuje wygodne rozwiązanie w przypadku gdy dane które chcemy zapisać nie znajdują się w jednym ciągłym fragmencie pamięci. Pozwala ona zebrać dane z wielu miejsc i zapisać je w pliku za pomocą jednego wywołania funkcji. Znajduje się w nagłówku `<sys/uio.h>`.
+
+`filedes` - deskryptor do którego zapisywane są dane,   
+`iov` - tablica struktur opisujących bufory z których funkcja zbiera dane - struct iovec (man 0p sys_uio.h), które mają następujące pola:   
+`void   *iov_base` -> wskaźnik na obszar pamięci,   
+`size_t  iov_len`  -> długość obszaru pamięci,   
+`iovcnt` - rozmiar tablicy `iov`.
+
+Funkcja ta zapisuje do filedes:   
+`iov[0].iov_len` bajtów zaczynając od `iov[0].iov_base`, następnie   
+`iov[1].iov_len` bajtów zaczynając od `iov[1].iov_base`, … aż do   
+`iov[iovcnt-1].iov_len` bajtów zaczynając od `iov[iovcnt-1].iov_base`.
+
+```C
+ssize_t bytes_written;
+int fd;
+char *buf0 = "short string\n";
+char *buf1 = "This is a longer string\n";
+char *buf2 = "This is the longest string in this example\n";
+int iovcnt;
+struct iovec iov[3];
+
+iov[0].iov_base = buf0;
+iov[0].iov_len = strlen(buf0);
+iov[1].iov_base = buf1;
+iov[1].iov_len = strlen(buf1);
+iov[2].iov_base = buf2;
+iov[2].iov_len = strlen(buf2);
+...
+iovcnt = sizeof(iov) / sizeof(struct iovec); // WIelkosc w bajtach calej tablicy na rozmiar jednego elementu
+
+bytes_written = writev(fd, iov, iovcnt); // Suma dlugosci wszystkich trzech lancuchow
+```
+
+### man 3p readv
+
+```C
+#include <sys/uio.h>
+
+ssize_t readv(int fildes, const struct iovec *iov, int iovcnt);
+```
+
+`filedes` - deskryptor z którego czytane są dane,   
+`iov` - tablica struktur struct iovec opisujących bufory do których funkcja rozprasza dane,   
+`iovcnt` - rozmiar tablicy `iov`.
+
+```C
+ssize_t bytes_read;
+int fd;
+char buf0[20];
+char buf1[30];
+char buf2[40];
+int iovcnt;
+struct iovec iov[3];
+
+iov[0].iov_base = buf0;
+iov[0].iov_len = sizeof(buf0);
+iov[1].iov_base = buf1;
+iov[1].iov_len = sizeof(buf1);
+iov[2].iov_base = buf2;
+iov[2].iov_len = sizeof(buf2);
+...
+iovcnt = sizeof(iov) / sizeof(struct iovec);
+
+bytes_read = readv(fd, iov, iovcnt);
+```
+
+
+### man 3p mmap
+
+```C
+#include <sys/mman.h>
+
+void *mmap(void *addr, size_t len, int prot, int flags,
+int fildes, off_t off);
+```
+
+**Jak działa?**
+
+**Połączenie:** Ustanawia bezpośrednie mapowanie między przestrzenią adresową Twojego programu (pamięcią RAM) a plikiem na dysku.   
+**Wskaźnik:** Zwraca zwykły wskaźnik (adres) do tej pamięci.   
+**Magia w tle:** Traktujesz plik dokładnie tak samo jak lokalną tablicę w C (np. `buff[0] = 'X'`). Nie używasz read ani write, a system operacyjny automatycznie, w tle sprzęga te modyfikacje w RAM-ie z fizycznym dyskiem twardym.
+
+**Argumenty funkcji**
+
+* **`addr` (Sugerowany adres):** Określa miejsce w przestrzeni adresowej twojego procesu, w pobliżu którego system powinien umieścić mapowanie. W praktyce wpisuje się tu najczęściej `0` (czyli `NULL`), co daje systemowi całkowitą swobodę w bezpiecznym dobraniu adresu.
+* **`len` (Długość):** Dokładna liczba bajtów, dla których chcesz ustanowić mapowanie. Jeśli wpiszesz tu zero, funkcja natychmiast zwróci błąd i mapowanie nie powstanie.
+* **`prot` (Ochrona/Uprawnienia):** Zestaw flag określających, na jakie operacje w tej pamięci pozwala twój kod. Używasz tu wartości takich jak `PROT_READ` (dozwolony odczyt danych), `PROT_WRITE` (dozwolony zapis), `PROT_EXEC` (wykonywanie kodu) lub `PROT_NONE` (całkowity brak dostępu), które możesz łączyć operatorem logicznym OR (`|`).
+* **`flags` (Flagi zachowania):** Decyduje o tym, co dzieje się z danymi po ich modyfikacji. Musisz wybrać jedną z dwóch głównych opcji:
+* `MAP_SHARED`: Wszelkie zmiany wprowadzone w pamięci wpłyną na bazowy obiekt (czyli fizycznie zaktualizują plik na dysku).
+* `MAP_PRIVATE`: Modyfikacje pozostają całkowicie prywatne dla twojego procesu i nie zmieniają oryginalnego pliku na dysku.
+* **`fildes` (Deskryptor pliku):** Liczba całkowita reprezentująca otwarty plik, z którym chcesz powiązać pamięć (uzyskana wcześniej z funkcji `open`).
+* **`off` (Przesunięcie/Offset):** Wskazuje, od którego bajtu w pliku źródłowym ma rozpocząć się mapowanie. Wartość ta najczęściej musi być wielokrotnością rozmiaru strony pamięci (zwykle 4096 bajtów), zwracanego przez systemową funkcję `sysconf()`. Jeśli chcesz zmapować plik od samego początku, wpisujesz tu `0`.
+
+**Wartość zwracana**
+
+* **W przypadku sukcesu:** Wskaźnik (adres) do miejsca w pamięci operacyjnej, pod którym zmapowano plik.
+* **W przypadku błędu:** Specjalną wartość `MAP_FAILED` oraz ustawia systemową zmienną `errno` wskazującą przyczynę awarii.
+
+**Przykład**
+
+`char *buff = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);`   
+W ten sposób prosimy system operacyjny o "zmapowanie" pliku o deskryptorze `fd` do pamięci o rozmiarze `length` tak, żebyśmy mogli go zarówno czytać jak i modyfikować (`PROT_READ | PROT_WRITE`). Wynikiem jest wskaźnik na zmapowaną pamięć lub wartość `MAP_FAILED` gdy wystąpi błąd.   
+`mmap` pozwala nam bardzo wygodnie modyfikować pliki, tak samo jak zwykłe tablice. Dwie funkcje pomocnicze to `msync` i `munmap`.
+
+`msync` wymusza synchronizację zmian na dysk - system operacyjny nie robi tego zawsze od razu, ponieważ zapisy na dysk są wolne.   
+`munmap` to likwidacja mapowania, czyli sprzątanie.
+
+**UWAGA!!! Deskryptor musi mieć odpowiednie uprawnienia. Gdybyśmy do `mmap` podali `PROT_READ | PROT_WRITE` oraz deskryptor który otworzyliśmy np. z flagą `O_RDONLY` funkcja zwróciłaby błąd.**
+
+```C
+int fd = open("a.txt", O_RDWR);
+if (fd == -1)
+  ERR("open");
+
+struct stat sb;
+if (fstat(fd, &sb) == -1)
+  ERR("fstat");
+size_t length = sb.st_size;
+char *buff = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+if (buff == MAP_FAILED)
+  ERR("mmap");
+
+printf("a.txt[3] = %c (ASCII: %d)\n", buff[3], buff[3]); // To sie dzieje OD RAZU
+buff[3] = 'Z'; // Modyfikuje tekst w moim RAMie
+msync(buff, length, MS_SYNC); // Wymusza zapisanie modyfikacji na dysk. Flaga MS_SYNC oznacza, że program poczeka w tej linijce, aż dysk twardy potwierdzi udany zapis. Gdybyś użyła MS_ASYNC, system przyjąłby zlecenie, ale program od razu poszedłby dalej.
+
+munmap(buff, length); // Zrywa mapowanie, oddaje RAM i buf[0] grozi od teraz segmentation fault
+close(fd);
+```
+
+### man 3p fcntl
+
+```C
+#include <fcntl.h>
+
+int fcntl(int fildes, int cmd, ...);
+```
+
+Podanie `F_GETFL` sprawia, że funkcja zwraca aktualnie ustawione flagi jako maskę bitową zapisaną w zmiennej typu `int`.
+Użycie `F_SETFL` wymaga podania maski definiującej flagi, jakie chcemy ustawić. Dlatego zwykle proces ustawiania flag deskryptora wygląda jak w funkcji `set_nonblocking()` w poniższym kodzie. Najpierw pobieramy aktualne flagi, ustawiamy te pola, które nas interesują, a następnie zapisujemy. Próba ustawienia flag poprzez wywołanie np. `fcntl(fd, F_SETFL, O_NONBLOCK)` jest błędem, ponieważ w ten sposób przy okazji **resetujemy wszystko** poza flagą `O_NONBLOCK`.
+
+```C
+void set_nonblocking(int fd)
+{
+    int flags = fcntl(fd, F_GETFL); // Pobiera wszystkie obecne ustawienia tego pliku
+    if (flags == -1)
+        ERR("fcntl");
+    flags |= O_NONBLOCK;                 // Dodaje flage do ustawien
+    if (fcntl(fd, F_SETFL, flags) == -1) // SETFL - set file status flags
+        ERR("fcntl");
+}
+```
+
+### man 3p poll
+
+```C
+#include <poll.h>
+
+int poll(struct pollfd fds[], nfds_t nfds, int timeout);
+```
+
+`fds` - tablica struktur z desktryptorami, na które będziemy czekać,   
+`nfds` - oczywiście rozmiar tej tablicy,   
+`timeout` - poll zakończy się gdy któryś z deskryptorów będzie gotowy do wykonania operacji albo osiągnięty zostanie `timeout` w milisekundach. Możemy też podać tam wartość `-1` żeby czekać w nieskończoność.
+
+**Działanie funkcji**
+
+Użycie funkcji `poll` polega więc na stworzeniu tablicy `fds` i wpisanie tam deskryptorów oraz wydarzeń na które będziemy czekać. Na przykład chcąc czekać aż jakieś użytkownik wpisze jakieś dane na standardowe wejście ustawimy `.fd` na `0` lub `STDIN_FILENO` a `.events` na `POLLIN`. **`revents` będzie ustawiany przez samego poll-a, dla bezpieczeństwa najlepiej go wyzerować.**
+
+**Wartości zwracane przez funkcję**
+
+* W przypadku pomyślnego zakończenia wywołania, funkcja zwraca wartość nieujemną.
+* Wartość dodatnia wskazuje całkowitą liczbę struktur `pollfd`, które zarejestrowały wybrane zdarzenia. Oznacza to liczbę struktur, w których pole `revents` ma wartość różną od zera.
+* Wartość 0 oznacza, że upłynął określony czas oczekiwania (`timeout`). Wskazuje to również, że nie wybrano żadnych deskryptorów plików.
+* W przypadku niepowodzenia funkcja zwraca wartość `-1`. W takiej sytuacji system ustawia zmienną `errno`, aby wskazać konkretny błąd.
+
+**Flagi zdarzeń w polu `revents`**
+
+* `POLLIN`: Dane inne niż te o wysokim priorytecie mogą być odczytane bez blokowania.
+* `POLLRDNORM`: Normalne dane mogą być odczytane bez blokowania.
+* `POLLRDBAND`: Dane priorytetowe mogą być odczytane bez blokowania.
+* `POLLPRI`: Dane o wysokim priorytecie mogą być odczytane bez blokowania.
+* `POLLOUT`: Normalne dane mogą być zapisane bez blokowania.
+* `POLLWRNORM`: Flaga jest odpowiednikiem `POLLOUT`.
+* `POLLWRBAND`: Można zapisywać dane priorytetowe.
+* `POLLERR`: Na urządzeniu lub strumieniu wystąpił błąd. Ta flaga jest poprawna wyłącznie w masce `revents` i jest ignorowana w polu `events`.
+* `POLLHUP`: Urządzenie zostało odłączone, albo potok lub FIFO zostały zamknięte przez ostatni proces, który miał je otwarte do zapisu. Ta flaga jest poprawna wyłącznie w masce `revents` i jest ignorowana w polu `events`.
+* `POLLNVAL`: Podana wartość deskryptora `fd` jest nieprawidłowa. Ta flaga jest poprawna wyłącznie w polu `revents` i jest ignorowana w polu `events`.
+
+Funkcja `poll()` automatycznie ustawi flagi `POLLERR`, `POLLHUP` oraz `POLLNVAL` w polu `revents`, jeśli dany warunek będzie prawdziwy, nawet w przypadku, gdy aplikacja nie ustawiła ich w polu `events`.
+
+**UWAGA!!! Wartość dokumentacji wskazuje tu na jedną ważną zasadę: zdarzenia `POLLHUP` i `POLLOUT` wykluczają się wzajemnie.** Strumień nie może być jednocześnie rozłączony (`POLLHUP`) i gotowy na przyjmowanie nowych danych (`POLLOUT`).
+
+`fds[i].fd < 0` oznacza, że urządzenie jest **martwe (odłączone).**
+
+### man 0p poll.h
+
+`int fd` - deskryptor na który będziemy czekać.   
+`short events` - bitmaska w której zapisujemy wydarzenia (events) na które chcemy czekać. Dla na istotne jest przede wszystkim `POLLIN` czyli oczekiwanie aż **deskryptor będzie miał gotowe do odczytu dane,** oraz `POLLOUT` - gdy **deskryptor będzie gotowy do zapisu.**
+
+Oto krótka, techniczna notatka podsumowująca ten mechanizm, idealna do powtórki przed kolokwium:
+
+**Dlaczego `poll()` wymaga deskryptorów w trybie nieblokującym (`O_NONBLOCK`)?**
+
+**1. Rola `poll()` i problem z ilością danych**
+
+* Funkcja `poll()` to multiplekser – informuje, że na danym deskryptorze pojawiły się dane do odczytu (`POLLIN`), ale **nie podaje ich dokładnej ilości**.
+* Aby uniknąć zalegania danych, musimy opróżnić bufor do zera przy użyciu pętli odczytującej (np. `while(read(...) == rozmiar)`).
+
+**2. Ryzyko trybu blokującego (domyślnego)**
+
+* Jeśli deskryptor jest blokujący, pętla `while` zassie dostępne pakiety, ale przy kolejnym obrocie – gdy bufor będzie już pusty – wywołanie `read()` **trwale zamrozi program** (w przypadku zwykłych plików read zwraca 0 i zgłasza `EOF`, ale w przypadku np. stdin nigdy nie wiadomo, kiedy dane się kończą, no bo je na bieżąco wpisujemy).
+* Proces utknie na instrukcji odczytu, ignorując `poll()` i zrywając całkowicie asynchroniczność (inne urządzenia nie będą obsługiwane).
+
+**3. Dlaczego nie czytać bez pętli?**
+
+* Zrezygnowanie z pętli i wywoływanie `read()` tylko raz po wybudzeniu zapobiega zablokowaniu, ale jest skrajnie nieefektywne.
+* Wymusza wielokrotne wybudzanie programu przez `poll()`, a przy danych o nieznanym rozmiarze (np. sieć) wymagałoby czytania po jednym bajcie.
+
+**4. Rozwiązanie: Flaga `O_NONBLOCK`**
+
+* Flagę przypisuje się na stałe do deskryptora podczas wywołania `open()` (lub modyfikuje przez `fcntl`). Sama funkcja `read` nie przyjmuje żadnych flag, po prostu dziedziczy zachowanie deskryptora.
+* Dzięki `O_NONBLOCK`, gdy pętla `while` opróżni bufor do zera, ostatni `read()` nie zamrozi programu. Zamiast tego **natychmiast zwróci `-1` i ustawi flagę błędu `EAGAIN**` (brak danych w danej chwili).
+* Zwrócenie `-1` przerywa warunek pętli, co pozwala programowi bezpiecznie z niej wyjść, wrócić do `poll()` i czekać na nowe zdarzenia.
+`short revents` - od return events - w tej bitmasce poll ustawi flagi wskazujące, co było **przyczyną jego zakończenia** - może to być przede wszystkim to, co ustawiliśmy w events (`POLLIN` lub `POLLOUT`), ale także wartości oznaczające, że wystąpił błąd lub problem z deskryptorem.
+
+### man 3p mkfifo
+
+```C
+#include <sys/stat.h>
+int mkfifo(const char *path, mode_t mode);
+
+#include <fcntl.h>
+int mkfifoat(int fd, const char *path, mode_t mode);
+```
+
+`path` - ścieżka,
+`mode` - uprawnienia.
+
+**1. Czy otwieranie do czytania/pisania sprawia, że dane się kasują?**
+
+Tak, dane w FIFO (potoku nazwanym) bezpowrotnie "znikają", ale nie dzieje się to w momencie użycia funkcji `open()`, lecz w momencie wywołania `read()`.
+
+Potok to nie jest wiadro (zwykły plik tekstowy na dysku), w którym dane leżą i można je czytać wiele razy. Potok to dosłownie **rura transmisyjna**, a dane w niej to woda. Gdy Twój program zasysa z rury np. 20 bajtów za pomocą `read()`, te 20 bajtów jest fizycznie usuwanych z pamięci operacyjnej potoku. Jeśli do tego samego potoku podepniesz drugi program i też zrobisz w nim `read()`, to on tych 20 bajtów już nie zobaczy – odczyta dopiero kolejne bajty, które ktoś tam wrzuci.
+
+Każdy bajt w pliku FIFO może zostać przeczytany tylko jeden raz.
+
+**2. Co zmienia tryb blokujący/nieblokujący i jak wchodzi w to `poll()`**
+
+Potoki nazwane mają jedną, niezwykle ważną cechę, która odróżnia je od urządzeń (`/dev/input/`) i która dotyczy samego **otwierania pliku**.
+
+**Tryb blokujący (domyślny - bez flagi `O_NONBLOCK`)**
+
+* **Przy otwieraniu (`open`):** Potok potrzebuje dwóch stron, żeby działać. Jeśli napiszesz `open("rura", O_RDONLY)`, Twój program **zamarznie w tej konkretnej linijce (na samym `open`)** tak długo, aż w innym terminalu nie pojawi się program (lub komenda), która otworzy tę samą rurę do pisania (`O_WRONLY`). Dopiero gdy obie strony trzymają rurę z dwóch końców, system operacyjny "puszcza" je dalej.
+* **Przy czytaniu (`read`):** Działa dokładnie tak: pusta rura = twarde zamrożenie procesu na linijce `read`, aż pisarz wrzuci tam nowe bajty.
+* **Przy końcu pliku (EOF):** Zwróci `0`, gdy program po drugiej stronie (pisarz) zamknie swój deskryptor funkcją `close()` lub po prostu zostanie wyłączony. To sygnał: "rura z drugiej strony została odcięta".
+
+**Tryb nieblokujący (z flagą `O_NONBLOCK`)**
+
+* **Przy otwieraniu (`open`):** Jeśli otwierasz rurę do czytania (`O_RDONLY | O_NONBLOCK`), funkcja `open` **nie czeka na pisarza**. Natychmiast daje Ci deskryptor, a program idzie dalej.
+* **Przy czytaniu (`read`):** Znowu, znasz to perfekcyjnie. Próba odczytu z pustej rury zwraca `-1` i ustawia błąd `EAGAIN`. W trybie nieblokującym pętla `while` wyssie wszystko do zera, nie zawieszając programu.
+
+**Jak działa tu multipleksowanie za pomocą `poll()`?**
+FIFO to idealny poligon doświadczalny dla `poll()`, ponieważ zachowuje się jak nieskończony strumień wejścia (zupełnie jak klawiatura, o której rozmawiałyśmy).
+
+1. Tworzysz potok za pomocą `mkfifo("moj_potok", 0666)`.
+2. Otwierasz go nieblokująco: `int fd = open("moj_potok", O_RDONLY | O_NONBLOCK)`.
+3. Wkładasz ten `fd` do struktury `fds[0]` dla `poll()`, ustawiasz nasłuchiwanie na `POLLIN` (czekam na dane).
+4. Odpalasz pętlę i wpadasz na szlaban: `poll(fds, 1, -1)`. Program zasypia, zużywając 0% procesora.
+5. W tym czasie w drugim oknie terminala wpisujesz: `echo "Jadwiga" > moj_potok`. Komenda `echo` otwiera rurę, wrzuca bajty i zamyka rurę.
+6. `poll()` widzi, że rura zabulgotała. Szlaban w Twoim programie idzie w górę.
+7. Wchodzisz w `if (fds[0].revents & POLLIN)`, a tam pętla `while` robiąca `read()` błyskawicznie zasysa napis "Jadwiga", dostaje `EAGAIN`, pętla się urywa i wracasz spać na funkcję `poll()`, czekając na kolejne komendy.
+
+Dzięki FIFO możesz przetestować cały ten genialny mechanizm asynchroniczności, omijając restrykcje uprawnień administratora dla urządzeń sprzętowych. Wszystko dzieje się bezpiecznie między oknami Twojego terminala.
