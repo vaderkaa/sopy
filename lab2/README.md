@@ -145,7 +145,8 @@ Funkcja `writev` oferuje wygodne rozwiązanie w przypadku gdy dane które chcemy
 `iov` - tablica struktur opisujących bufory z których funkcja zbiera dane - struct iovec (man 0p sys_uio.h), które mają następujące pola:   
 `void   *iov_base` -> wskaźnik na obszar pamięci,   
 `size_t  iov_len`  -> długość obszaru pamięci,   
-`iovcnt` - rozmiar tablicy `iov`.   
+`iovcnt` - rozmiar tablicy `iov`.
+
 Funkcja ta zapisuje do filedes:   
 `iov[0].iov_len` bajtów zaczynając od `iov[0].iov_base`, następnie   
 `iov[1].iov_len` bajtów zaczynając od `iov[1].iov_base`, … aż do   
@@ -317,16 +318,16 @@ Użycie funkcji `poll` polega więc na stworzeniu tablicy `fds` i wpisanie tam d
 
 **Flagi zdarzeń w polu `revents`**
 
-* **POLLIN:** Dane inne niż te o wysokim priorytecie mogą być odczytane bez blokowania.
-* **POLLRDNORM:** Normalne dane mogą być odczytane bez blokowania.
-* **POLLRDBAND:** Dane priorytetowe mogą być odczytane bez blokowania.
-* **POLLPRI:** Dane o wysokim priorytecie mogą być odczytane bez blokowania.
-* **POLLOUT:** Normalne dane mogą być zapisane bez blokowania.
-* **POLLWRNORM:** Flaga jest odpowiednikiem `POLLOUT`.
-* **POLLWRBAND:** Można zapisywać dane priorytetowe.
-* **POLLERR:** Na urządzeniu lub strumieniu wystąpił błąd. Ta flaga jest poprawna wyłącznie w masce `revents` i jest ignorowana w polu `events`.
-* **POLLHUP:** Urządzenie zostało odłączone, albo potok lub FIFO zostały zamknięte przez ostatni proces, który miał je otwarte do zapisu. Ta flaga jest poprawna wyłącznie w masce `revents` i jest ignorowana w polu `events`.
-* **POLLNVAL:** Podana wartość deskryptora `fd` jest nieprawidłowa. Ta flaga jest poprawna wyłącznie w polu `revents` i jest ignorowana w polu `events`.
+* `POLLIN`: Dane inne niż te o wysokim priorytecie mogą być odczytane bez blokowania.
+* `POLLRDNORM`: Normalne dane mogą być odczytane bez blokowania.
+* `POLLRDBAND`: Dane priorytetowe mogą być odczytane bez blokowania.
+* `POLLPRI`: Dane o wysokim priorytecie mogą być odczytane bez blokowania.
+* `POLLOUT`: Normalne dane mogą być zapisane bez blokowania.
+* `POLLWRNORM`: Flaga jest odpowiednikiem `POLLOUT`.
+* `POLLWRBAND`: Można zapisywać dane priorytetowe.
+* `POLLERR`: Na urządzeniu lub strumieniu wystąpił błąd. Ta flaga jest poprawna wyłącznie w masce `revents` i jest ignorowana w polu `events`.
+* `POLLHUP`: Urządzenie zostało odłączone, albo potok lub FIFO zostały zamknięte przez ostatni proces, który miał je otwarte do zapisu. Ta flaga jest poprawna wyłącznie w masce `revents` i jest ignorowana w polu `events`.
+* `POLLNVAL`: Podana wartość deskryptora `fd` jest nieprawidłowa. Ta flaga jest poprawna wyłącznie w polu `revents` i jest ignorowana w polu `events`.
 
 Funkcja `poll()` automatycznie ustawi flagi `POLLERR`, `POLLHUP` oraz `POLLNVAL` w polu `revents`, jeśli dany warunek będzie prawdziwy, nawet w przypadku, gdy aplikacja nie ustawiła ich w polu `events`.
 
@@ -337,5 +338,79 @@ Funkcja `poll()` automatycznie ustawi flagi `POLLERR`, `POLLHUP` oraz `POLLNVAL`
 ### man 0p poll.h
 
 `int fd` - deskryptor na który będziemy czekać.   
-`short events` - bitmaska w której zapisujemy wydarzenia (events) na które chcemy czekać. Dla na istotne jest przede wszystkim `POLLIN` czyli oczekiwanie aż **deskryptor będzie miał gotowe do odczytu dane,** oraz `POLLOUT` - gdy **deskryptor będzie gotowy do zapisu.**   
+`short events` - bitmaska w której zapisujemy wydarzenia (events) na które chcemy czekać. Dla na istotne jest przede wszystkim `POLLIN` czyli oczekiwanie aż **deskryptor będzie miał gotowe do odczytu dane,** oraz `POLLOUT` - gdy **deskryptor będzie gotowy do zapisu.**
+
+Oto krótka, techniczna notatka podsumowująca ten mechanizm, idealna do powtórki przed kolokwium:
+
+**Dlaczego `poll()` wymaga deskryptorów w trybie nieblokującym (`O_NONBLOCK`)?**
+
+**1. Rola `poll()` i problem z ilością danych**
+
+* Funkcja `poll()` to multiplekser – informuje, że na danym deskryptorze pojawiły się dane do odczytu (`POLLIN`), ale **nie podaje ich dokładnej ilości**.
+* Aby uniknąć zalegania danych, musimy opróżnić bufor do zera przy użyciu pętli odczytującej (np. `while(read(...) == rozmiar)`).
+
+**2. Ryzyko trybu blokującego (domyślnego)**
+
+* Jeśli deskryptor jest blokujący, pętla `while` zassie dostępne pakiety, ale przy kolejnym obrocie – gdy bufor będzie już pusty – wywołanie `read()` **trwale zamrozi program** (w przypadku zwykłych plików read zwraca 0 i zgłasza `EOF`, ale w przypadku np. stdin nigdy nie wiadomo, kiedy dane się kończą, no bo je na bieżąco wpisujemy).
+* Proces utknie na instrukcji odczytu, ignorując `poll()` i zrywając całkowicie asynchroniczność (inne urządzenia nie będą obsługiwane).
+
+**3. Dlaczego nie czytać bez pętli?**
+
+* Zrezygnowanie z pętli i wywoływanie `read()` tylko raz po wybudzeniu zapobiega zablokowaniu, ale jest skrajnie nieefektywne.
+* Wymusza wielokrotne wybudzanie programu przez `poll()`, a przy danych o nieznanym rozmiarze (np. sieć) wymagałoby czytania po jednym bajcie.
+
+**4. Rozwiązanie: Flaga `O_NONBLOCK**`
+
+* Flagę przypisuje się na stałe do deskryptora podczas wywołania `open()` (lub modyfikuje przez `fcntl`). Sama funkcja `read` nie przyjmuje żadnych flag, po prostu dziedziczy zachowanie deskryptora.
+* Dzięki `O_NONBLOCK`, gdy pętla `while` opróżni bufor do zera, ostatni `read()` nie zamrozi programu. Zamiast tego **natychmiast zwróci `-1` i ustawi flagę błędu `EAGAIN**` (brak danych w danej chwili).
+* Zwrócenie `-1` przerywa warunek pętli, co pozwala programowi bezpiecznie z niej wyjść, wrócić do `poll()` i czekać na nowe zdarzenia.
 `short revents` - od return events - w tej bitmasce poll ustawi flagi wskazujące, co było **przyczyną jego zakończenia** - może to być przede wszystkim to, co ustawiliśmy w events (`POLLIN` lub `POLLOUT`), ale także wartości oznaczające, że wystąpił błąd lub problem z deskryptorem.
+
+### man 3p mkfifo
+
+```C
+#include <sys/stat.h>
+int mkfifo(const char *path, mode_t mode);
+
+#include <fcntl.h>
+int mkfifoat(int fd, const char *path, mode_t mode);
+```
+
+`path` - ścieżka,
+`mode` - uprawnienia.
+
+**1. Czy otwieranie do czytania/pisania sprawia, że dane się kasują?**
+
+Tak, dane w FIFO (potoku nazwanym) bezpowrotnie "znikają", ale nie dzieje się to w momencie użycia funkcji `open()`, lecz w momencie wywołania `read()`.
+
+Potok to nie jest wiadro (zwykły plik tekstowy na dysku), w którym dane leżą i można je czytać wiele razy. Potok to dosłownie **rura transmisyjna**, a dane w niej to woda. Gdy Twój program zasysa z rury np. 20 bajtów za pomocą `read()`, te 20 bajtów jest fizycznie usuwanych z pamięci operacyjnej potoku. Jeśli do tego samego potoku podepniesz drugi program i też zrobisz w nim `read()`, to on tych 20 bajtów już nie zobaczy – odczyta dopiero kolejne bajty, które ktoś tam wrzuci.
+
+Każdy bajt w pliku FIFO może zostać przeczytany tylko jeden raz.
+
+**2. Co zmienia tryb blokujący/nieblokujący i jak wchodzi w to `poll()`**
+
+Potoki nazwane mają jedną, niezwykle ważną cechę, która odróżnia je od urządzeń (`/dev/input/`) i która dotyczy samego **otwierania pliku**.
+
+**Tryb blokujący (domyślny - bez flagi O_NONBLOCK)**
+
+* **Przy otwieraniu (`open`):** Potok potrzebuje dwóch stron, żeby działać. Jeśli napiszesz `open("rura", O_RDONLY)`, Twój program **zamarznie w tej konkretnej linijce (na samym `open`)** tak długo, aż w innym terminalu nie pojawi się program (lub komenda), która otworzy tę samą rurę do pisania (`O_WRONLY`). Dopiero gdy obie strony trzymają rurę z dwóch końców, system operacyjny "puszcza" je dalej.
+* **Przy czytaniu (`read`):** Działa dokładnie tak: pusta rura = twarde zamrożenie procesu na linijce `read`, aż pisarz wrzuci tam nowe bajty.
+* **Przy końcu pliku (EOF):** Zwróci `0`, gdy program po drugiej stronie (pisarz) zamknie swój deskryptor funkcją `close()` lub po prostu zostanie wyłączony. To sygnał: "rura z drugiej strony została odcięta".
+
+**Tryb nieblokujący (z flagą O_NONBLOCK)**
+
+* **Przy otwieraniu (`open`):** Jeśli otwierasz rurę do czytania (`O_RDONLY | O_NONBLOCK`), funkcja `open` **nie czeka na pisarza**. Natychmiast daje Ci deskryptor, a program idzie dalej.
+* **Przy czytaniu (`read`):** Znowu, znasz to perfekcyjnie. Próba odczytu z pustej rury zwraca `-1` i ustawia błąd `EAGAIN`. W trybie nieblokującym pętla `while` wyssie wszystko do zera, nie zawieszając programu.
+
+**Jak działa tu multipleksowanie za pomocą `poll()`?**
+FIFO to idealny poligon doświadczalny dla `poll()`, ponieważ zachowuje się jak nieskończony strumień wejścia (zupełnie jak klawiatura, o której rozmawiałyśmy).
+
+1. Tworzysz potok za pomocą `mkfifo("moj_potok", 0666)`.
+2. Otwierasz go nieblokująco: `int fd = open("moj_potok", O_RDONLY | O_NONBLOCK)`.
+3. Wkładasz ten `fd` do struktury `fds[0]` dla `poll()`, ustawiasz nasłuchiwanie na `POLLIN` (czekam na dane).
+4. Odpalasz pętlę i wpadasz na szlaban: `poll(fds, 1, -1)`. Program zasypia, zużywając 0% procesora.
+5. W tym czasie w drugim oknie terminala wpisujesz: `echo "Jadwiga" > moj_potok`. Komenda `echo` otwiera rurę, wrzuca bajty i zamyka rurę.
+6. `poll()` widzi, że rura zabulgotała. Szlaban w Twoim programie idzie w górę.
+7. Wchodzisz w `if (fds[0].revents & POLLIN)`, a tam pętla `while` robiąca `read()` błyskawicznie zasysa napis "Jadwiga", dostaje `EAGAIN`, pętla się urywa i wracasz spać na funkcję `poll()`, czekając na kolejne komendy.
+
+Dzięki FIFO możesz przetestować cały ten genialny mechanizm asynchroniczności, omijając restrykcje uprawnień administratora dla urządzeń sprzętowych. Wszystko dzieje się bezpiecznie między oknami Twojego terminala.
