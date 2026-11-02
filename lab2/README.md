@@ -115,10 +115,11 @@ ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset);
 ssize_t read(int fildes, void *buf, size_t nbyte);
 ```
 
-* `filedes` - deskryptor pliku, pozyskany z open.
-* `buf` - wskaźnik na bufor z którego pobierane będą dane.
-* `nbyte` - rozmiar danych przeznaczonych do wysłania.
-* zwracana wartość: ilość zapisanych bajtów.
+`filedes` - deskryptor pliku, pozyskany z open,   
+`buf` - wskaźnik na bufor z którego pobierane będą dane,   
+`nbyte` - rozmiar danych przeznaczonych do wysłania.
+
+**Zwracana wartość:** ilość zapisanych bajtów.
 
 ### man 3p lseek
 
@@ -142,8 +143,8 @@ Funkcja `writev` oferuje wygodne rozwiązanie w przypadku gdy dane które chcemy
 
 `filedes` - deskryptor do którego zapisywane są dane,   
 `iov` - tablica struktur opisujących bufory z których funkcja zbiera dane - struct iovec (man 0p sys_uio.h), które mają następujące pola:   
-`void   *iov_base` -> wskaźnik na obszar pamięci   
-`size_t  iov_len`  -> długość obszaru pamięci   
+`void   *iov_base` -> wskaźnik na obszar pamięci,   
+`size_t  iov_len`  -> długość obszaru pamięci,   
 `iovcnt` - rozmiar tablicy `iov`.   
 Funkcja ta zapisuje do filedes:   
 `iov[0].iov_len` bajtów zaczynając od `iov[0].iov_base`, następnie   
@@ -180,7 +181,7 @@ ssize_t readv(int fildes, const struct iovec *iov, int iovcnt);
 ```
 
 `filedes` - deskryptor z którego czytane są dane,   
-`iov` - tablica struktur struct iovec opisujących bufory do których funkcja rozprasza dane.   
+`iov` - tablica struktur struct iovec opisujących bufory do których funkcja rozprasza dane,   
 `iovcnt` - rozmiar tablicy `iov`.
 
 ```C
@@ -303,8 +304,36 @@ int poll(struct pollfd fds[], nfds_t nfds, int timeout);
 `nfds` - oczywiście rozmiar tej tablicy,   
 `timeout` - poll zakończy się gdy któryś z deskryptorów będzie gotowy do wykonania operacji albo osiągnięty zostanie `timeout` w milisekundach. Możemy też podać tam wartość `-1` żeby czekać w nieskończoność.
 
+**Działanie funkcji**
+
+Użycie funkcji `poll` polega więc na stworzeniu tablicy `fds` i wpisanie tam deskryptorów oraz wydarzeń na które będziemy czekać. Na przykład chcąc czekać aż jakieś użytkownik wpisze jakieś dane na standardowe wejście ustawimy `.fd` na `0` lub `STDIN_FILENO` a `.events` na `POLLIN`. **`revents` będzie ustawiany przez samego poll-a, dla bezpieczeństwa najlepiej go wyzerować.**
+
+**Wartości zwracane przez funkcję**
+
+* W przypadku pomyślnego zakończenia wywołania, funkcja zwraca wartość nieujemną.
+* Wartość dodatnia wskazuje całkowitą liczbę struktur `pollfd`, które zarejestrowały wybrane zdarzenia. Oznacza to liczbę struktur, w których pole `revents` ma wartość różną od zera.
+* Wartość 0 oznacza, że upłynął określony czas oczekiwania (`timeout`). Wskazuje to również, że nie wybrano żadnych deskryptorów plików.
+* W przypadku niepowodzenia funkcja zwraca wartość `-1`. W takiej sytuacji system ustawia zmienną `errno`, aby wskazać konkretny błąd.
+
+**Flagi zdarzeń w polu `revents`**
+
+* **POLLIN:** Dane inne niż te o wysokim priorytecie mogą być odczytane bez blokowania.
+* **POLLRDNORM:** Normalne dane mogą być odczytane bez blokowania.
+* **POLLRDBAND:** Dane priorytetowe mogą być odczytane bez blokowania.
+* **POLLPRI:** Dane o wysokim priorytecie mogą być odczytane bez blokowania.
+* **POLLOUT:** Normalne dane mogą być zapisane bez blokowania.
+* **POLLWRNORM:** Flaga jest odpowiednikiem `POLLOUT`.
+* **POLLWRBAND:** Można zapisywać dane priorytetowe.
+* **POLLERR:** Na urządzeniu lub strumieniu wystąpił błąd. Ta flaga jest poprawna wyłącznie w masce `revents` i jest ignorowana w polu `events`.
+* **POLLHUP:** Urządzenie zostało odłączone, albo potok lub FIFO zostały zamknięte przez ostatni proces, który miał je otwarte do zapisu. Ta flaga jest poprawna wyłącznie w masce `revents` i jest ignorowana w polu `events`.
+* **POLLNVAL:** Podana wartość deskryptora `fd` jest nieprawidłowa. Ta flaga jest poprawna wyłącznie w polu `revents` i jest ignorowana w polu `events`.
+
+Funkcja `poll()` automatycznie ustawi flagi `POLLERR`, `POLLHUP` oraz `POLLNVAL` w polu `revents`, jeśli dany warunek będzie prawdziwy, nawet w przypadku, gdy aplikacja nie ustawiła ich w polu `events`.
+
+**UWAGA!!! Wartość dokumentacji wskazuje tu na jedną ważną zasadę: zdarzenia `POLLHUP` i `POLLOUT` wykluczają się wzajemnie.** Strumień nie może być jednocześnie rozłączony (`POLLHUP`) i gotowy na przyjmowanie nowych danych (`POLLOUT`).
+
 ### man 0p poll.h
 
-`int fd` - deskryptor na który będziemy czekać   
+`int fd` - deskryptor na który będziemy czekać.   
 `short events` - bitmaska w której zapisujemy wydarzenia (events) na które chcemy czekać. Dla na istotne jest przede wszystkim `POLLIN` czyli oczekiwanie aż **deskryptor będzie miał gotowe do odczytu dane,** oraz `POLLOUT` - gdy **deskryptor będzie gotowy do zapisu.**   
 `short revents` - od return events - w tej bitmasce poll ustawi flagi wskazujące, co było **przyczyną jego zakończenia** - może to być przede wszystkim to, co ustawiliśmy w events (`POLLIN` lub `POLLOUT`), ale także wartości oznaczające, że wystąpił błąd lub problem z deskryptorem.
