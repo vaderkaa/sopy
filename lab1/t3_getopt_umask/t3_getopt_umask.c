@@ -1,3 +1,7 @@
+// Obsługa flag w terminalu (getopt)
+// Użycie umask do uprawnień i ftruncate/fseek do tworzenia "plików rzadkich"
+// Przykład użycia: ./t3_getopt_umask -n test.txt -p 0644 -s 25
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>

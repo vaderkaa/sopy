@@ -1,6 +1,6 @@
 CC = gcc
 CFLAGS = -Wall -fsanitize=address,undefined
-TARGET = l1-3
+TARGET = t3_getopt_umask
 
 all: $(TARGET)
 

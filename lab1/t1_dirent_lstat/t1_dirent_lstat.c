@@ -1,11 +1,11 @@
+// Skanowanie katalogu (opendir/readdir)
+// Sprawdzanie typów plików za pomocą lstat (S_ISDIR, S_ISREG, S_ISLNK)
+
 #include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
-#include <unistd.h>
-
-#define MAX_PATH 101
 
 #define ERR(source) (perror(source), fprintf(stderr, "%s:%d\n", __FILE__, __LINE__), exit(EXIT_FAILURE))
 
@@ -44,17 +44,6 @@ void scan_dir()
 
 int main(int argc, char **argv)
 {
-    char path[MAX_PATH];
-    if (getcwd(path, MAX_PATH) == NULL) // current working directory
-        ERR("getcwd");
-    for (int i = 1; i < argc; i++) // argv[0] to program
-    {
-        if (chdir(argv[i]))
-            ERR("chdir");
-        printf("%s:\n", argv[i]);
-        scan_dir();      // wywoluje opendir("."), ktory zmienilismy przez chdir
-        if (chdir(path)) // wracamy do folderu startowego
-            ERR("chdir");
-    }
+    scan_dir();
     return EXIT_SUCCESS;
 }
