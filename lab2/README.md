@@ -332,6 +332,8 @@ Funkcja `poll()` automatycznie ustawi flagi `POLLERR`, `POLLHUP` oraz `POLLNVAL`
 
 **UWAGA!!! Wartość dokumentacji wskazuje tu na jedną ważną zasadę: zdarzenia `POLLHUP` i `POLLOUT` wykluczają się wzajemnie.** Strumień nie może być jednocześnie rozłączony (`POLLHUP`) i gotowy na przyjmowanie nowych danych (`POLLOUT`).
 
+`fds[i].fd < 0` oznacza, że urządzenie jest **martwe (odłączone).**
+
 ### man 0p poll.h
 
 `int fd` - deskryptor na który będziemy czekać.   
