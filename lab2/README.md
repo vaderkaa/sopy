@@ -359,7 +359,7 @@ Oto krótka, techniczna notatka podsumowująca ten mechanizm, idealna do powtór
 * Zrezygnowanie z pętli i wywoływanie `read()` tylko raz po wybudzeniu zapobiega zablokowaniu, ale jest skrajnie nieefektywne.
 * Wymusza wielokrotne wybudzanie programu przez `poll()`, a przy danych o nieznanym rozmiarze (np. sieć) wymagałoby czytania po jednym bajcie.
 
-**4. Rozwiązanie: Flaga `O_NONBLOCK**`
+**4. Rozwiązanie: Flaga `O_NONBLOCK`**
 
 * Flagę przypisuje się na stałe do deskryptora podczas wywołania `open()` (lub modyfikuje przez `fcntl`). Sama funkcja `read` nie przyjmuje żadnych flag, po prostu dziedziczy zachowanie deskryptora.
 * Dzięki `O_NONBLOCK`, gdy pętla `while` opróżni bufor do zera, ostatni `read()` nie zamrozi programu. Zamiast tego **natychmiast zwróci `-1` i ustawi flagę błędu `EAGAIN**` (brak danych w danej chwili).
@@ -391,13 +391,13 @@ Każdy bajt w pliku FIFO może zostać przeczytany tylko jeden raz.
 
 Potoki nazwane mają jedną, niezwykle ważną cechę, która odróżnia je od urządzeń (`/dev/input/`) i która dotyczy samego **otwierania pliku**.
 
-**Tryb blokujący (domyślny - bez flagi O_NONBLOCK)**
+**Tryb blokujący (domyślny - bez flagi `O_NONBLOCK`)**
 
 * **Przy otwieraniu (`open`):** Potok potrzebuje dwóch stron, żeby działać. Jeśli napiszesz `open("rura", O_RDONLY)`, Twój program **zamarznie w tej konkretnej linijce (na samym `open`)** tak długo, aż w innym terminalu nie pojawi się program (lub komenda), która otworzy tę samą rurę do pisania (`O_WRONLY`). Dopiero gdy obie strony trzymają rurę z dwóch końców, system operacyjny "puszcza" je dalej.
 * **Przy czytaniu (`read`):** Działa dokładnie tak: pusta rura = twarde zamrożenie procesu na linijce `read`, aż pisarz wrzuci tam nowe bajty.
 * **Przy końcu pliku (EOF):** Zwróci `0`, gdy program po drugiej stronie (pisarz) zamknie swój deskryptor funkcją `close()` lub po prostu zostanie wyłączony. To sygnał: "rura z drugiej strony została odcięta".
 
-**Tryb nieblokujący (z flagą O_NONBLOCK)**
+**Tryb nieblokujący (z flagą `O_NONBLOCK`)**
 
 * **Przy otwieraniu (`open`):** Jeśli otwierasz rurę do czytania (`O_RDONLY | O_NONBLOCK`), funkcja `open` **nie czeka na pisarza**. Natychmiast daje Ci deskryptor, a program idzie dalej.
 * **Przy czytaniu (`read`):** Znowu, znasz to perfekcyjnie. Próba odczytu z pustej rury zwraca `-1` i ustawia błąd `EAGAIN`. W trybie nieblokującym pętla `while` wyssie wszystko do zera, nie zawieszając programu.
