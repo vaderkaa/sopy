@@ -19,35 +19,89 @@
  * Write tests create the file which are then readed by read tests
  * block_size is 1 or 4096 for block tests.
  */
- 
-int test_write(const char *path, const unsigned char *data, size_t size, size_t block_size)
+
+int test_write(const char* path, const unsigned char* data, size_t size, size_t block_size)
+// Zapisac size znakow w paczkach o rozmiarze block_size
 {
     double start = now(CLOCK_MONOTONIC);
     (void)path;
     (void)data;
     (void)size;
     (void)block_size;
+
     /* STAGE1: implement the test, then set result to 0 on success. */
-    int result = -1;
+
+    int result = 0;
+
+    int fd = open(path, O_CREAT | O_WRONLY | O_EXCL, 0644);  // mkdtemp potem dba o to, ze ten folder musi byc nowy
+    if (fd == -1)
+        return -1;
+
+    size_t offset = 0;
+    while (offset < size)
+    {
+        size_t how_much = size - offset < block_size ? size - offset : block_size;
+        ssize_t n = write(fd, data + offset, how_much);  // ssize_t, bo write moze zwrocic wartosc ujemna
+        if (n <= 0)
+        {
+            result = -1;
+            break;
+        }
+
+        offset += how_much;
+    }
+
+    if (offset != size)
+        result = -1;
+
+    close(fd);  // Ma byc uwzglednione w pomiarze czasu
+
     if (result == 0)
         printf("  write block=%-4zu %9.3f ms  OK\n", block_size, elapsed(CLOCK_MONOTONIC, start) * 1000);
+
     return result;
 }
 
-int test_read(const char *path, size_t size, size_t block_size)
+int test_read(const char* path, size_t size, size_t block_size)
 {
     double start = now(CLOCK_MONOTONIC);
     (void)path;
     (void)size;
     (void)block_size;
+
     /* STAGE1: implement the test, then set result to 0 on success. */
-    int result = -1;
+
+    int result = 0;
+
+    int fd = open(path, O_RDONLY);
+    if (fd == -1 || block_size > 4096)
+        return -1;
+
+    char buff[4096];
+
+    size_t offset = 0;
+    while (offset < size)
+    {
+        ssize_t bytes = read(fd, buff, block_size);
+        if (bytes < 0)
+        {
+            result = -1;
+            break;
+        }
+        else if (!bytes)
+            break;
+
+        offset += bytes;
+    }
+
+    close(fd);
+
     if (result == 0)
         printf("  read block=%-4zu %9.3f ms  OK\n", block_size, elapsed(CLOCK_MONOTONIC, start) * 1000);
     return result;
 }
 
-int test_fwrite(const char *path, const unsigned char *data, size_t size, size_t block_size)
+int test_fwrite(const char* path, const unsigned char* data, size_t size, size_t block_size)
 {
     double start = now(CLOCK_MONOTONIC);
     (void)path;
@@ -61,7 +115,7 @@ int test_fwrite(const char *path, const unsigned char *data, size_t size, size_t
     return result;
 }
 
-int test_fread(const char *path, size_t size, size_t block_size)
+int test_fread(const char* path, size_t size, size_t block_size)
 {
     double start = now(CLOCK_MONOTONIC);
     (void)path;
@@ -74,7 +128,7 @@ int test_fread(const char *path, size_t size, size_t block_size)
     return result;
 }
 
-int test_fputc(const char *path, const unsigned char *data, size_t size, size_t block_size)
+int test_fputc(const char* path, const unsigned char* data, size_t size, size_t block_size)
 {
     double start = now(CLOCK_MONOTONIC);
     (void)path;
@@ -88,7 +142,8 @@ int test_fputc(const char *path, const unsigned char *data, size_t size, size_t 
     return result;
 }
 
-int test_fgetc(const char *path, size_t size, size_t block_size)
+int test_fgetc(const char* path, size_t size, size_t block_size)
+// EOF moze sie wydarzyc, jesli doszlismy do konca pliku
 {
     double start = now(CLOCK_MONOTONIC);
     (void)path;
@@ -101,14 +156,44 @@ int test_fgetc(const char *path, size_t size, size_t block_size)
     return result;
 }
 
-int test_fscanf(const char *path, size_t size, size_t block_size)
+int test_fscanf(const char* path, size_t size, size_t block_size)
 {
     double start = now(CLOCK_MONOTONIC);
     (void)path;
     (void)size;
     (void)block_size;
+
     /* STAGE2: implement the test, then set result to 0 on success. */
-    int result = -1;
+
+    int result = 0;
+
+    FILE* file = fopen(path, "r");
+    if (!file)
+        return -1;
+
+    size_t offset = 0;
+    while (offset < size)
+    {
+        char c;
+        int res = fscanf(file, "%c", &c);
+
+        if (!res)
+        {
+            result = -1;
+            break;
+        }
+
+        if (res == EOF)
+            break;
+
+        offset++;
+    }
+
+    if (offset != size)
+        result = -1;
+
+    fclose(file);
+
     if (result == 0)
         printf("  fscanf           %9.3f ms  OK\n", elapsed(CLOCK_MONOTONIC, start) * 1000);
     return result;
@@ -125,7 +210,7 @@ enum wait_mode
 int test_wait(enum wait_mode mode)
 {
     // initialization - boilerplate
-    const char *name;
+    const char* name;
     int fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
     if (fd == -1)
     {
@@ -139,7 +224,7 @@ int test_wait(enum wait_mode mode)
         close(fd);
         return -1;
     }
-    timer.it_value.tv_nsec += INTERVAL_NS;
+    timer.it_value.tv_nsec += INTERVAL_NS;  // To ile na poczatku testu plus 30ms
     if (timer.it_value.tv_nsec >= 1000000000L)
     {
         timer.it_value.tv_sec++;
@@ -199,7 +284,7 @@ int main(void)
     for (size_t i = 0; i < sizeof(data); i++)
         data[i] = (unsigned char)(i * 37 + i / 256);
 
-    char directory[] = "/tmp/sop1-workshop-XXXXXX";
+    char directory[] = "/tmp/sop1-workshop-XXXXXX";  // Pliki sa w RAMie
     if (!mkdtemp(directory))
     {
         perror("mkdtemp");
