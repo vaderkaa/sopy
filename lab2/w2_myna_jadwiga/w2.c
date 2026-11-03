@@ -1,3 +1,4 @@
+#include <ctime>
 #define _POSIX_C_SOURCE 200809L
 
 #include "utils.h"
@@ -259,8 +260,31 @@ int test_wait(enum wait_mode mode)
         }
         case WAIT_POLL:
         {
-            name = "poll";
             // STAGE3: implement waiting with poll here
+
+            name = "poll";
+            result = 0;
+            struct pollfd pfd = {.fd = fd, .events = POLLIN};
+            while (stats.count < EXPIRATION_COUNT)
+            {
+                uint64_t expirations;
+                int res = poll(&pfd, 1, -1);
+                if (res < 1 || pfd.revents != POLLIN)
+                {
+                    result = -1;
+                    break;
+                }
+
+                ssize_t n = read(fd, &expirations, sizeof(expirations));
+                if (n != sizeof(expirations))
+                {
+                    result = -1;
+                    break;
+                }
+
+                record_expirations(&stats, expirations, now(CLOCK_MONOTONIC));
+            }
+
             break;
         }
         default:
