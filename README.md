@@ -1,4 +1,4 @@
-# Startowy kod każdego programu
+# Kod startowy
 
 ```C
 #include <dirent.h>
@@ -25,4 +25,22 @@ int main(int argc, char **argv)
     
     return EXIT_SUCCESS;
 }
+```
+
+# Makefile
+
+```Makefile
+CC = gcc
+CFLAGS = -Wall -fsanitize=address,undefined
+TARGET = zadanie
+
+all: $(TARGET)
+
+$(TARGET): $(TARGET).c   
+	$(CC) $(CFLAGS) -o $(TARGET) $(TARGET).c
+
+.PHONY: clean all
+
+clean:
+	rm -f $(TARGET)
 ```
