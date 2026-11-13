@@ -111,8 +111,8 @@ ssize_t read(int fildes, void *buf, size_t nbyte);
 ```C
 #include <unistd.h>
 
-ssize_t pread(int fildes, void *buf, size_t nbyte, off_t offset);
-ssize_t read(int fildes, void *buf, size_t nbyte);
+ssize_t pwrite(int fildes, const void *buf, size_t nbyte, off_t offset);
+ssize_t write(int fildes, const void *buf, size_t nbyte);
 ```
 
 `filedes` - deskryptor pliku, pozyskany z open,   
