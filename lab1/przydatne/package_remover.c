@@ -56,10 +56,14 @@ int main(int argc, char *argv[])
     {
         // Jeśli linia pasuje do usuwanego pakietu (nazwa + spacja) – pomijamy ją (usuwamy)
         if (strncmp(buf, rev_name, strlen(rev_name)) == 0 && buf[strlen(rev_name)] == ' ')
+        {
+            errno = 0;
             continue;
+        }
 
         // Pozostałe linie przepisujemy do pliku tymczasowego
         fprintf(fp_temp, "%s", buf);
+        errno = 0;
     }
 
     // Zabezpieczenie sprawdzające błąd odczytu w pętli
