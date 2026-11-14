@@ -1,0 +1,7 @@
+uthor:Plutarch
+latin_title:De fluviorum et montium nominibus et de iis, quae in illis inveniuntur
+title:Περὶ ποταμῶν καὶ ὀρῶν ἐπωνυμίας
+genre:geography
+incipit:When Chrysippe, through the anger of Aphrodite
+had fallen into a yearning 
+for Hydaspes
