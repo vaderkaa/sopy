@@ -22,7 +22,7 @@
 
 int is_event_name(const char *name) // Wybiera pliki o nazwach event1234567890
 {
-    if (strncmp(name, "event", 5) != 0) // String wejsciowy, wzorzec, liczba znow do sprawdzenia, zwraca 0, jesli sa identyczne
+    if (strncmp(name, "event", 5) != 0) // String wejsciowy, wzorzec, liczba znakow do sprawdzenia, zwraca 0, jesli sa identyczne
         return 0;
     for (int i = 5; name[i] != '\0'; i++)
     {
