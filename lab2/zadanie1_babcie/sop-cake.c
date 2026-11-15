@@ -44,94 +44,133 @@ int main(int argc, char **argv)
     else // Po prostu blad open
         ERR("open");
 
+    // PRZYGOTOWANIE STRUKTURY POLLFD
     int fifo;
-    if ((fifo = open(argv[2], O_RDONLY)) == -1)
+    struct pollfd pfd[argc - 2]; // Minus nazwa programu i przepis
+    for (int i = 2; i < argc; i++)
     {
-        if (errno == ENOENT) // Plik nie istnieje
+        if ((fifo = open(argv[i], O_RDONLY | O_NONBLOCK)) == -1) // TUTAJ MUSI BYC NONBLOCK
         {
-            fprintf(stderr, "Nie ma babci na wieży %s\n", argv[2]);
+            if (errno == ENOENT) // Plik nie istnieje
+            {
+                fprintf(stderr, "Nie ma babci na wieży %s\n", argv[i]);
+                exit(EXIT_FAILURE);
+            }
+            else
+                ERR("open");
+        }
+
+        struct stat file_stat;
+        if (fstat(fifo, &file_stat) == -1)
+            ERR("fstat");
+        if (!S_ISFIFO(file_stat.st_mode)) // Plik nie jest laczem nazwanym
+        {
+            fprintf(stderr, "Nie ma babci na wieży %s\n", argv[i]);
             exit(EXIT_FAILURE);
         }
-        else
-            ERR("open");
+
+        pfd[i - 2].fd = fifo;
+        pfd[i - 2].events = POLLIN;
+        pfd[i - 2].revents = 0;
     }
 
-    struct stat file_stat;
-    if (fstat(fifo, &file_stat) == -1)
-        ERR("fstat");
-    if (!S_ISFIFO(file_stat.st_mode)) // Plik nie jest laczem nazwanym
-    {
-        fprintf(stderr, "Nie ma babci na wieży %s\n", argv[2]);
-        exit(EXIT_FAILURE);
-    }
-
-    struct pollfd pfd;
-    pfd.fd = fifo;
-    pfd.events = POLLIN;
-    pfd.revents = 0;
     int ret = 0;
     ssize_t bytes_read = 0;
 
-    char main_buf[4096] = "";
+    char main_buf[argc - 2][4096];         // Kazda babcia musi miec wlasny bufor
+    memset(main_buf, 0, sizeof(main_buf)); // Zeby nie bylo smieci tylko czysto
     char buf[128] = "";
     char *pointer = NULL;
     int number = 0;
     char line_temp[64] = "";
     char line[64] = "";
 
-    for (;;)
+    int closed_files = 0;
+
+    while (closed_files < (argc - 2))
     {
-        ret = poll(&pfd, 1, -1);
+        ret = poll(pfd, argc - 2, 3000); // TUTAJ TRZEBA ZMIENIC DRUGI PARAMETR
+        // 3000 - 3 sekundy
 
         if (ret == -1) // Czy mamy blad polla po prostu
             ERR("poll");
 
-        while ((bytes_read = read(fifo, buf, sizeof(buf) - 1)) > 0)
+        if (ret == 0) // Minely 3 sekundy i nic sie nie wydarzylo
         {
-            // ETAP 1
-            // buf[bytes_read] = '\0';
-            // fprintf(stdout, "%s", buf);
-            buf[bytes_read] = '\0';
-            strcat(main_buf, buf);
-
-            while ((pointer = strchr(main_buf, '\n')) != NULL)
-            {
-                *pointer = '\0';
-
-                // Szuka w main_buf maksmalnie 2 liczby, potem ma byc dwukropek, a potem cokolwiek, az do entera
-                // Ale tego entera na pewno nie ma, wiec przeczyta calosc, az do znaku \0
-                // Nie moge napisac zwyklego %s, bo wtedy przerwie mi po pierwszej spacji
-                // Dokleja na koniec \0
-                if (sscanf(main_buf, "%2d:%63[^\n]", &number, line_temp) == 2 && number >= 0 && number <= 31)
-                {
-                    memset(line, ' ', 63);
-                    line[63] = '\n';
-                    memcpy(line, line_temp, strlen(line_temp) > 63 ? 63 : strlen(line_temp));
-
-                    lseek(fd, number * 64, SEEK_SET);
-                    if (write(fd, line, 64) == -1)
-                        ERR("write");
-
-                    fprintf(stdout, "Krok %02d zapisany\n", number);
-                }
-                else
-                    fprintf(stderr, "Babcia sie zagadala\n");
-
-                // Przesuwamy to, co jest za pointerem, razem ze znakiem konca linii
-                memmove(main_buf, pointer + 1, strlen(pointer + 1) + 1);
-            }
-        }
-        if (bytes_read == 0) // EOF
-            break;
-        else if (errno == EAGAIN || errno == EWOULDBLOCK) // Nie ma juz danych, ale jeszcze nie zamknieto fifo
+            fprintf(stdout, "Babcie dolewają herbatki…\n");
             continue;
-        else // Po prostu blad
-            ERR("read");
-    }
+        }
 
-    if (close(fifo))
-        ERR("close");
+        for (int i = 0; i < argc - 2; i++) // Idziemy po kolei po kazdym fifo
+        {
+            if (pfd[i].fd < 0) // Zamknelismy juz ten fifo
+                continue;
+
+            if (pfd[i].revents & (POLLERR | POLLNVAL)) // Czy w bitach zwrotnych znajduje sie jakakolwiek z tych flag
+            {
+                if (close(pfd[i].fd))
+                    ERR("close");
+                closed_files++;
+                pfd[i].fd = -1; // Ignorujemy zepsute urzadzenie w nastepnych obrotach petli
+                continue;
+            }
+
+            if (!(pfd[i].revents & POLLIN)) // Na urzadzeniu NIE ma nowych danych
+                continue;
+
+            while ((bytes_read = read(pfd[i].fd, buf, sizeof(buf) - 1)) > 0)
+            {
+                // ETAP 1
+                // buf[bytes_read] = '\0';
+                // fprintf(stdout, "%s", buf);
+
+                buf[bytes_read] = '\0';
+                strcat(main_buf[i], buf);
+
+                while ((pointer = strchr(main_buf[i], '\n')) != NULL)
+                {
+                    *pointer = '\0';
+
+                    // Szuka w main_buf maksmalnie 2 liczby, potem ma byc dwukropek, a potem cokolwiek, az do entera
+                    // Ale tego entera na pewno nie ma, wiec przeczyta calosc, az do znaku \0
+                    // Nie moge napisac zwyklego %s, bo wtedy przerwie mi po pierwszej spacji
+                    // Dokleja na koniec \0
+                    if (sscanf(main_buf[i], "%2d:%63[^\n]", &number, line_temp) == 2 && number >= 0 && number <= 31)
+                    {
+                        memset(line, ' ', 63);
+                        line[63] = '\n';
+                        memcpy(line, line_temp, strlen(line_temp) > 63 ? 63 : strlen(line_temp));
+
+                        lseek(fd, number * 64, SEEK_SET);
+                        if (write(fd, line, 64) == -1)
+                            ERR("write");
+
+                        fprintf(stdout, "Krok %02d zapisany\n", number);
+                    }
+                    else
+                        fprintf(stderr, "Babcia sie zagadala\n");
+
+                    // Przesuwamy to, co jest za pointerem, razem ze znakiem konca linii
+                    memmove(main_buf[i], pointer + 1, strlen(pointer + 1) + 1);
+                }
+            }
+            if (bytes_read == 0) // EOF
+            {
+                fprintf(stdout, "Babcia z wiezy %s skonczyla dyktowac\n", argv[i + 2]);
+                if (close(pfd[i].fd))
+                    ERR("close");
+                closed_files++;
+                pfd[i].fd = -1;
+            }
+            else if (errno == EAGAIN || errno == EWOULDBLOCK) // Nie ma juz danych, ale jeszcze nie zamknieto fifo
+                continue;
+            else // Po prostu blad
+                ERR("read");
+        }
+    }
 
     if (close(fd))
         ERR("close");
+
+    return EXIT_SUCCESS;
 }

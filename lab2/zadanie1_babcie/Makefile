@@ -11,3 +11,4 @@ $(TARGET): $(TARGET).c
 
 clean:
 	rm -f $(TARGET)
+	rm -f *.txt
