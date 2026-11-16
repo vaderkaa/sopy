@@ -170,6 +170,50 @@ clean:
 **Alokacja pamięci:** Nie.   
 **Znak `\0`:** Tak, tak samo niszczy (nadpisuje) oryginalny string zerami.   
 
+**Przykład 1: `strtok` (zwykłe cięcie po spacji)**
+
+```C
+char tekst[] = "Ala ma kota";
+char *token = strtok(tekst, " "); // Pierwsze wywołanie z oryginalnym napisem
+
+while (token != NULL) {
+    // 1 obieg: token = "Ala"
+    // 2 obieg: token = "ma"
+    // 3 obieg: token = "kota"
+    printf("%s\n", token);
+    
+    token = strtok(NULL, " "); // Kolejne wywołania z NULL
+}
+```
+
+**Przykład 2: `strtok_r` (cięcie zagnieżdżone)**
+
+```C
+char tekst[] = "Jan:45;Anna:32";
+char *zapis_zewn, *zapis_wewn;
+
+// 1. Zewnętrzna pętla tnie po średniku
+char *osoba = strtok_r(tekst, ";", &zapis_zewn);
+
+while (osoba != NULL) {
+    // 1 obieg zewnętrzny: osoba = "Jan:45"
+    // 2 obieg zewnętrzny: osoba = "Anna:32"
+
+    // 2. Wewnętrzna pętla tnie 'osobę' po dwukropku
+    char *cecha = strtok_r(osoba, ":", &zapis_wewn);
+    
+    while (cecha != NULL) {
+        // Dla "Jan:45" wypisze: "Jan", potem "45"
+        // Dla "Anna:32" wypisze: "Anna", potem "32"
+        printf("%s\n", cecha);
+        
+        cecha = strtok_r(NULL, ":", &zapis_wewn);
+    }
+    
+    osoba = strtok_r(NULL, ";", &zapis_zewn);
+}
+```
+
 `strspn(const char *s, const char *accept)`   
 **Parametry:** `s` – badany string; `accept` – lista akceptowanych znaków.   
 **Działanie:** Idzie od lewej po `s` i mierzy, ile znaków pod rząd należy do zbioru `accept`. Zatrzymuje się na pierwszym znaku niebędącym w tym zbiorze.   
