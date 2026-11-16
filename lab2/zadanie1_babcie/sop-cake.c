@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <poll.h>
+#include <sys/mman.h>
 
 #define ERR(source) (perror(source), fprintf(stderr, "%s:%d\n", __FILE__, __LINE__), exit(EXIT_FAILURE))
 
@@ -37,7 +38,7 @@ int main(int argc, char **argv)
             ERR("open");
         if (lseek(fd, 0, SEEK_END) != 2048)
         {
-            fprintf(stderr, "Ta ksiega to nie przepis!\n");
+            fprintf(stderr, "Ta księga to nie przepis!\n");
             exit(EXIT_FAILURE);
         }
     }
@@ -46,6 +47,7 @@ int main(int argc, char **argv)
 
     // PRZYGOTOWANIE STRUKTURY POLLFD
     int fifo;
+    struct stat file_stat;
     struct pollfd pfd[argc - 2]; // Minus nazwa programu i przepis
     for (int i = 2; i < argc; i++)
     {
@@ -60,7 +62,6 @@ int main(int argc, char **argv)
                 ERR("open");
         }
 
-        struct stat file_stat;
         if (fstat(fifo, &file_stat) == -1)
             ERR("fstat");
         if (!S_ISFIFO(file_stat.st_mode)) // Plik nie jest laczem nazwanym
@@ -115,8 +116,10 @@ int main(int argc, char **argv)
                 continue;
             }
 
-            if (!(pfd[i].revents & POLLIN)) // Na urzadzeniu NIE ma nowych danych
+            // Jesli na urzadzeniu nie ma nowych danych ani sie nie rozlaczylo
+            if (!(pfd[i].revents & (POLLIN | POLLHUP)))
                 continue;
+            // Jesli babcia dala dane i w tej samej sekundzie sie rozlaczyla, to cos moglo zostac w srodku
 
             while ((bytes_read = read(pfd[i].fd, buf, sizeof(buf) - 1)) > 0)
             {
@@ -148,7 +151,7 @@ int main(int argc, char **argv)
                         fprintf(stdout, "Krok %02d zapisany\n", number);
                     }
                     else
-                        fprintf(stderr, "Babcia sie zagadala\n");
+                        fprintf(stderr, "Babcia %s się zagadała\n", argv[i + 2]);
 
                     // Przesuwamy to, co jest za pointerem, razem ze znakiem konca linii
                     memmove(main_buf[i], pointer + 1, strlen(pointer + 1) + 1);
@@ -156,7 +159,7 @@ int main(int argc, char **argv)
             }
             if (bytes_read == 0) // EOF
             {
-                fprintf(stdout, "Babcia z wiezy %s skonczyla dyktowac\n", argv[i + 2]);
+                fprintf(stdout, "Babcia z wieży %s skończyła dyktować\n", argv[i + 2]);
                 if (close(pfd[i].fd))
                     ERR("close");
                 closed_files++;
@@ -168,6 +171,63 @@ int main(int argc, char **argv)
                 ERR("read");
         }
     }
+
+    // MAPOWANIE
+    char *mmap_buf = mmap(NULL, 2048, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (mmap_buf == MAP_FAILED)
+        ERR("mmap");
+
+    // ZAMIANA raw~berries na raspberries
+    *(mmap_buf + 2047) = '\0';
+    char *mmap_pointer = mmap_buf;
+    int count = 0;
+    while ((mmap_pointer = strstr(mmap_pointer, "raw~berries")) != NULL)
+    {
+        memcpy(mmap_pointer, "raspberries", sizeof("raspberries") - 1);
+        count++;
+        mmap_pointer += sizeof("raspberries") - 1;
+    }
+    *(mmap_buf + 2047) = '\n';
+    msync(mmap_buf, 2048, MS_SYNC);
+    fprintf(stdout, "Brudy księżniczki Joanny wyczyszczone: %d\n", count);
+
+    // LICZENIE BRAKUJACYCH LINII I WYSWIETLANIE PRZEPISU
+    char mmap_line[65];
+    mmap_line[64] = '\0'; // Zabezpieczenie
+    int j = 0;
+    int missing = 0;
+    char ready[32][64];
+    for (int i = 0; i < 32; i++)
+    {
+        memcpy(mmap_line, mmap_buf + i * 64, 64);
+
+        if (strspn(mmap_line, " ") == 63)
+        {
+            missing++;
+            ready[i][0] = '\0';
+            continue;
+        }
+
+        j = 62; // Startuje przed znakiem entera
+        while (j >= 0 && mmap_line[j] == ' ')
+            j--;
+        mmap_line[j + 1] = '\0';
+
+        strcpy(ready[i], mmap_line);
+    }
+
+    for (int i = 0; i < 32; i++)
+    {
+        if (ready[i][0] != '\0')
+            fprintf(stdout, "%02d: %s\n", i, ready[i]);
+    }
+
+    if (missing == 0)
+        fprintf(stdout, "Tort gotowy!\n");
+    else
+        fprintf(stdout, "Brakuje %d kroków, tort się zapadnie!\n", missing);
+
+    munmap(mmap_buf, 2048);
 
     if (close(fd))
         ERR("close");
