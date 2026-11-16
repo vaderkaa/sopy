@@ -96,7 +96,7 @@ clean:
 ### Łączenie (Konkatenacja)
 
 `strcat(char *dest, const char *src)`   
-**Parametry:** `dest` – string bazowy, do którego doklejamy; `src` – string doklejany.
+**Parametry:** `dest` – string bazowy, do którego doklejamy; `src` – string doklejany.   
 **Działanie:** Szuka zera kończącego w `dest` i w to miejsce zaczyna nadpisywać znaki z `src`. Bufor `dest` musi mieć odpowiedni zapas pamięci.   
 **Zwraca:** `char*` – wskaźnik na `dest`.   
 **Alokacja pamięci:** Nie.   
@@ -118,12 +118,12 @@ clean:
 **Alokacja pamięci:** Nie.   
 **Znak `\0`:** Nie dotyczy.   
 
-`strncmp(const char *s1, const char *s2, size_t n)`
-**Parametry:** `s1`, `s2` – stringi; `n` – ile pierwszych znaków porównać.
-**Działanie:** Jak `strcmp`, ale zatrzymuje się po sprawdzeniu `n` znaków.
-**Zwraca:** `int`. Zwraca `0` jeśli pierwsze `n` znaków jest identyczne. Inaczej wartość `< 0` lub `> 0`.
-**Alokacja pamięci:** Nie.
-**Znak `\0`:** Nie dotyczy.
+`strncmp(const char *s1, const char *s2, size_t n)`   
+**Parametry:** `s1`, `s2` – stringi; `n` – ile pierwszych znaków porównać.   
+**Działanie:** Jak `strcmp`, ale zatrzymuje się po sprawdzeniu `n` znaków.   
+**Zwraca:** `int`. Zwraca `0` jeśli pierwsze `n` znaków jest identyczne. Inaczej wartość `< 0` lub `> 0`.   
+**Alokacja pamięci:** Nie.   
+**Znak `\0`:** Nie dotyczy.   
 
 `strcasecmp(const char *s1, const char *s2)` *(POSIX)*   
 **Parametry:** `s1`, `s2` – stringi do porównania.   
@@ -158,7 +158,7 @@ clean:
 `strtok(char *str, const char *delim)`   
 **Parametry:** `str` – string do pocięcia w pierwszym wywołaniu, w kolejnych podajesz tu `NULL`; `delim` – zbiór znaków służących jako przecinaki (np. `" ,.-"`).   
 **Działanie:** Dzieli string na "tokeny" (kawałki). Wywołana pierwszy raz na stringu znajduje pierwszy token. Przy każdym kolejnym wywołaniu z parametrem `str = NULL`, szuka kolejnego w ukrytej zmiennej wewnątrz biblioteki.   
-**Zwraca:** `char*` – wskaźnik na początek znalezionego tokena. Kiedy nie ma już więcej słów, zwraca `NULL`.
+**Zwraca:** `char*` – wskaźnik na początek znalezionego tokena. Kiedy nie ma już więcej słów, zwraca `NULL`.   
 **Alokacja pamięci:** Nie.   
 **Znak `\0`:** TAK (destrukcja). Funkcja niszczy Twój oryginalny string, fizycznie podmieniając znalezienie przecinaki (`delim`) na znaki końca `\0`, po to, żeby zwrócony wskaźnik działał jako osobny string.   
 **Uwaga:** Nie jest bezpieczna w wielowątkowości (tzw. thread-unsafe), bo używa ukrytych zmiennych statycznych.   
@@ -200,7 +200,7 @@ clean:
 
 # Operacje na pamięci
 
-🚨 Funkcje `mem...` są GŁUCHE I ŚLEPE na znak końca stringa (`\0`). 🚨
+🚨 Funkcje `mem...` są GŁUCHE I ŚLEPE na znak końca stringa (`\0`). 🚨   
 One nie operują na tekście, tylko na czystych blokach pamięci (bajtach). Znak `\0` nic dla nich nie znaczy (jest to dla nich po prostu bajt o wartości `0x00`). Zawsze musisz im dokładnie powiedzieć w parametrze `n`, ile bajtów mają przetworzyć. Gdy zaczną kopiować lub czytać, nie zatrzymają się po napotkaniu `\0`. Zrobią równo tyle kroków, ile im kazano, nawet jeśli wyjdą poza sensowne dane i zaczną czytać śmieci.
 
 ### Kopiowanie pamięci
@@ -236,6 +236,7 @@ One nie operują na tekście, tylko na czystych blokach pamięci (bajtach). Znak
 **Znak \0:** NIE. Chyba że wpiszesz tam wartość `0`, no to po prostu wypełni pamięć zerami (czyli znakami `\0`).   
 
 ### Porównywanie
+
 `memcmp(const void *s1, const void *s2, size_t n)` *(Memory Compare)*   
 **Parametry:** `s1` i `s2` – wskaźniki na dwa bloki pamięci; `n` – ile bajtów porównać.   
 **Działanie:** Krok po kroku, bajt po bajcie porównuje oba bloki. Nie zatrzymuje się na bajcie zerowym! Zawsze przetworzy równo `n` bajtów (chyba że wcześniej znajdzie różnicę). Traktuje te bajty jako wartości liczbowe (`unsigned char`).   
