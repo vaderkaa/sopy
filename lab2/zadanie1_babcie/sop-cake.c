@@ -11,12 +11,6 @@
 
 #define ERR(source) (perror(source), fprintf(stderr, "%s:%d\n", __FILE__, __LINE__), exit(EXIT_FAILURE))
 
-void usage(char *pname)
-{
-    fprintf(stderr, "USAGE: %s\n", pname);
-    exit(EXIT_FAILURE);
-}
-
 int main(int argc, char **argv)
 {
     int fd;
