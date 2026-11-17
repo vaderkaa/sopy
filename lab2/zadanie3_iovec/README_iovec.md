@@ -1,5 +1,3 @@
-Oto Twój "żelazny schemat" na każde zadanie z `readv`/`writev` i plikami binarnymi, który możesz sobie zapisać. Opiera się dokładnie na tym, co właśnie zrobiliśmy:
-
 ### Żelazny Schemat na Pliki Binarne w C
 
 **1. Analiza struktur i ich wielkości**
