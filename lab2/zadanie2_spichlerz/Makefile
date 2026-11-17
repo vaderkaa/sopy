@@ -12,3 +12,5 @@ $(TARGET): $(TARGET).c
 clean:
 	rm -f $(TARGET)
 	rm -rf manifests
+	rm -rf index
+	rm -f *.bin
