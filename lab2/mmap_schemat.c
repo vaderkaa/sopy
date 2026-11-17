@@ -7,12 +7,14 @@
 
 #define ERR(source) (perror(source), fprintf(stderr, "%s:%d\n", __FILE__, __LINE__), exit(EXIT_FAILURE))
 
-int main() {
+int main()
+{
     const char *filepath = "baza.bin";
 
     // 1. Otwarcie pliku (musi miec prawa odpowiadajace mapowaniu)
     int fd = open(filepath, O_RDWR | O_CREAT, 0644);
-    if (fd < 0) ERR("open");
+    if (fd < 0)
+        ERR("open");
 
     // 2. Pobranie rozmiaru pliku (st.st_size)
     struct stat st;
@@ -22,7 +24,8 @@ int main() {
 
     // 3. KLUCZOWE: Rozciąganie nowego pliku!
     // Jeśli plik ma 0 bajtów, mmap sie powiedzie, ale ZAPIS wywali SIGBUS (Bus Error)!
-    if (length == 0) {
+    if (length == 0)
+    {
         length = 1024; // Ustawiamy oczekiwany rozmiar pliku (np. 1024 bajty)
         if (ftruncate(fd, length) == -1) ERR("ftruncate");
     }
@@ -32,12 +35,12 @@ int main() {
     void *mapped = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     
     // UWAGA: mmap nie zwraca NULL w razie bledu, tylko MAP_FAILED!
-    if (mapped == MAP_FAILED) {
+    if (mapped == MAP_FAILED)
         ERR("mmap");
-    }
 
     // Od razu po mapowaniu mozna bezpiecznie zamknac plik! (Mapowanie zostaje aktywne)
-    if (close(fd)) ERR("close");
+    if (close(fd))
+        ERR("close");
 
     // =========================================================
     // DZIAŁANIE NA DANYCH (Traktujemy plik jak pamiec RAM)
@@ -52,10 +55,12 @@ int main() {
     // =========================================================
     
     // Wymuszenie fizycznego zapisu na dysk (opcjonalne, ale bardzo dobre na labach)
-    if (msync(mapped, length, MS_SYNC) == -1) ERR("msync");
+    if (msync(mapped, length, MS_SYNC) == -1)
+        ERR("msync");
 
     // Usuniecie mapowania
-    if (munmap(mapped, length) == -1) ERR("munmap");
+    if (munmap(mapped, length) == -1)
+        ERR("munmap");
 
     return EXIT_SUCCESS;
 }
